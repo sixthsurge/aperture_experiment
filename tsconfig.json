@@ -1,0 +1,6 @@
+{
+  "files": [
+    "shaders/iris.d.ts",
+    "shaders/pack.ts"
+  ]
+}
