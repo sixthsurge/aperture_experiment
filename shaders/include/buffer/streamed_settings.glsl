@@ -1,0 +1,8 @@
+#if !defined SHADERS_INCLUDE_BUFFER_STREAMED_SETTINGS
+#define SHADERS_INCLUDE_BUFFER_STREAMED_SETTINGS
+
+struct StreamedSettings {
+    float exposure;
+};
+
+#endif // SHADERS_INCLUDE_BUFFER_STREAMED_SETTINGS

@@ -1,7 +1,4 @@
-#if !defined SHADERS_INCLUDE_BUFFER_GLOBAL_DATA
-#define SHADERS_INCLUDE_BUFFER_GLOBAL_DATA
-
-struct GlobalData {
+GlobalBuffer {
     vec3 light_direction;
     float pad0;
 
@@ -13,6 +10,4 @@ struct GlobalData {
 
     vec3 light_irradiance;
     float pad3;
-};
-
-#endif
+} global;

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["options.ts"],
+  "sourcesContent": ["import type {} from './iris'\n\nexport function setupOptions() {\n    return new Page(\"main\")\n        .add(\n            asFloat(\"EXPOSURE\", ...range(0.0, 1024.0, 1.0))\n                .needsReload(false)\n                .build(8.0)\n        )\n        .build();\n}\n\nfunction range(min: number, max: number, step: number): number[] {\n    let values: number[] = []\n\n    for (let x = min; x <= max; x += step) values.push(x); \n\n    return values;\n}\n"],
+  "mappings": ";AAEO,SAAS,eAAe;AAC3B,SAAO,IAAI,KAAK,MAAM,EACjB;AAAA,IACG,QAAQ,YAAY,GAAG,MAAM,GAAK,MAAQ,CAAG,CAAC,EACzC,YAAY,KAAK,EACjB,MAAM,CAAG;AAAA,EAClB,EACC,MAAM;AACf;AAEA,SAAS,MAAM,KAAa,KAAa,MAAwB;AAC7D,MAAI,SAAmB,CAAC;AAExB,WAAS,IAAI,KAAK,KAAK,KAAK,KAAK,KAAM,QAAO,KAAK,CAAC;AAEpD,SAAO;AACX;",
+  "names": []
+}

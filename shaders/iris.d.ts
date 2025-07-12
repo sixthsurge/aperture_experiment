@@ -18,24 +18,37 @@ declare var screenHeight: number;
  * The world settings. These control fixed rendering parameters of the pipeline.
  */
 declare class WorldSettings {
-    /**
-     * Default: 1024
-     */
-  shadowMapResolution: number;
-  cascadeCount: number;
-  cascadeSafeZones: number[];
-  shadowMapDistance: number;
-  shadowNearPlane: number;
-  shadowFarPlane: number;
   sunPathRotation: number;
   ambientOcclusionLevel: number;
-  renderSun: boolean;
-  renderWaterOverlay: boolean;
   mergedHandDepth: boolean;
-  renderMoon: boolean;
-  renderStars: boolean;
-  renderEntityShadow: boolean;
   disableShade: boolean;
+
+  shadow : ShadowSettings;
+  render : RenderSettings;
+}
+
+declare class ShadowSettings {
+    resolution : number;
+    cascades : number;
+    entityCascadeCount : number;
+    distance : number;
+    near : number;
+    far : number;
+
+    safeZone : number[];
+
+    enable() : void;
+}
+
+declare class RenderSettings {
+    sun : boolean;
+    moon : boolean;
+    stars : boolean;
+    horizon : boolean;
+    clouds : boolean;
+    vignette : boolean;
+    waterOverlay : boolean;
+    entityShadow : boolean;
 }
 
 /**
@@ -272,7 +285,6 @@ declare class TextureCopy {
   build(): PostPass;
 }
 
-declare function enableShadows(resolution : number, cascadeCount: number): void;
 
 /**
  * A memory barrier, to be registered with {@link registerBarrier}.
@@ -292,7 +304,15 @@ declare class TextureBarrier implements Barrier {
   constructor();
 }
 
-declare class ObjectShader {
+interface Shader<T> {
+    ssbo(index: number, buf: BuiltBuffer | undefined): T;
+    ubo(index: number, buf: BuiltBuffer | undefined): T;
+    define(key: string, value: string): T;
+
+    build(): BuiltObjectShader;
+}
+
+declare class ObjectShader implements Shader<ObjectShader> {
   constructor(name: string, usage: ProgramUsage);
 
   vertex(loc: string): ObjectShader;
@@ -319,7 +339,7 @@ declare class ObjectShader {
   build(): BuiltObjectShader;
 }
 
-declare class Composite {
+declare class Composite implements Shader<Composite> {
   constructor(name: string);
 
   vertex(loc: string): Composite;
@@ -346,14 +366,14 @@ declare class Composite {
   build(): PostPass;
 }
 
-declare class Compute {
+declare class Compute implements Shader<Compute> {
   constructor(name: string);
 
   location(loc: string): Compute;
   workGroups(x: number, y: number, z: number): Compute;
-  ssbo(index: number, buf: BuiltBuffer | undefined): Composite;
-  ubo(index: number, buf: BuiltBuffer | undefined): Composite;
-  define(key: string, value: string): Composite;
+  ssbo(index: number, buf: BuiltBuffer | undefined): Compute;
+  ubo(index: number, buf: BuiltBuffer | undefined): Compute;
+  define(key: string, value: string): Compute;
 
   build(): PostPass;
 }
@@ -367,6 +387,7 @@ declare class CombinationPass {
   constructor(location: string);
   ssbo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
   ubo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
+  define(key: string, value: string): ObjectShader;
 
   build(): BuiltCombinationPass;
 }
@@ -386,7 +407,7 @@ interface BuiltBuffer {}
 /**
  * The result of a {@link StreamingBuffer}.
  */
-class BuiltStreamingBuffer implements BuiltBuffer {
+declare class BuiltStreamingBuffer implements BuiltBuffer {
     setInt(offset : number, value: number): void;
     setFloat(offset : number, value: number): void;
     setBool(offset : number, value: boolean): void;
@@ -684,6 +705,13 @@ declare class ArrayTexture {
  */
 declare class PNGTexture implements BuiltTexture {
   constructor(name: string, loc: string, blur: boolean, clamp: boolean);
+
+    readBack(): ArrayBuffer;
+    name(): string;
+    imageName(): string;
+    width(): number;
+    height(): number;
+    depth(): number;
 }
 
 // The auto-generated stuff goes here
@@ -825,4 +853,9 @@ declare namespace Usage {
   let SHADOW_BLOCK_ENTITY_TRANSLUCENT: ProgramUsage;
   let SHADOW_PARTICLES: ProgramUsage;
   let SHADOW_PARTICLES_TRANSLUCENT: ProgramUsage;
+}
+
+
+declare class GenerateMips implements PostPass {
+    constructor(texture: BuiltTexture);
 }
