@@ -14,15 +14,15 @@ uniform sampler3D atmosphere_scattering_lut;
 #include "/include/sky/projection.glsl"
 
 void main() {
-    vec3 direction_w = unproject_sky(uv);
+    vec3 ray_dir = unproject_sky(uv);
 
     sky_view_out = atmosphere_scattering(
         atmosphere_scattering_lut,
-        direction_w,
+        ray_dir,
         sun_irradiance,
-        global.sun_direction,
+        global.sun_dir,
         moon_irradiance,
-        global.moon_direction,
+        global.moon_dir,
         true
     );
 }

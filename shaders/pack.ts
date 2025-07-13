@@ -1,4 +1,5 @@
 import type {} from './iris'
+import {configureLightColors} from './script/lightColorsNull.ts'
 
 const globalDataBufferSize = 64; 
 
@@ -9,10 +10,7 @@ const exposureHistogramPixelsPerThreadY = 2;
 let streamedSettingsBuffer: BuiltStreamingBuffer;
 
 export function configureRenderer(renderer: RendererConfig) {
-    // ------------------
-    //   World Settings
-    // ------------------
-renderer.disableShade          = true;
+    renderer.disableShade          = true;
     renderer.ambientOcclusionLevel = 0.0;
     renderer.sunPathRotation       = 30.0;
 
@@ -23,10 +21,25 @@ renderer.disableShade          = true;
     renderer.shadow.enabled        = true;
     renderer.shadow.resolution     = 1024;
     renderer.shadow.cascades       = 4;
+
+    let pointLightsEnabled = getBoolSetting("POINT_SHADOW");
+    if (pointLightsEnabled) {
+        renderer.pointLight.maxCount             = getIntSetting("POINT_SHADOW_MAX_COUNT");
+        renderer.pointLight.resolution           = getIntSetting("POINT_SHADOW_RESOLUTION");
+        renderer.pointLight.nearPlane            = 0.1;
+        renderer.pointLight.farPlane             = 16.0;
+        renderer.pointLight.cacheRealTimeTerrain = true;
+    }
 }
 
 export function configurePipeline(pipeline: PipelineConfig) {
-    setLightColors();
+    configureLightColors();
+
+    // ------------
+    //   Settings
+    // ------------
+
+    let pointLightsEnabled = getBoolSetting("POINT_SHADOW");
 
     // ------------
     //   Textures
@@ -89,49 +102,52 @@ export function configurePipeline(pipeline: PipelineConfig) {
     //   Macros
     // ----------
 
+    if (pointLightsEnabled) {
+        defineGlobally("POINT_SHADOW", "1");
+    }
+
     defineGlobally("HISTOGRAM_BINS", exposureHistogramBins);
 
-    // ----------
-    //   Passes
-    // ----------
+    // ------------
+    //   Programs
+    // ------------
 
     pipeline.registerObjectShader(
         new ObjectShader("shadow", Usage.SHADOW)
-            .vertex("passes/object/shadow.vsh")
-            .fragment("passes/object/shadow.fsh")
+            .vertex("program/object/shadow.vsh")
+            .fragment("program/object/shadow.fsh")
             .build()
     );
 
-    pipeline.registerObjectShader(
-            new ObjectShader("textured2", Usage.BASIC)
-                    .vertex("passes/object/all_solid.vsh")
-                    .fragment("passes/object/all_solid.fsh")
-                    .target(0, radianceTex)
-                    .define("RAD", "1")
-                    .build()
-    );
+    if (pointLightsEnabled) {
+        pipeline.registerObjectShader(
+            new ObjectShader("shadow_point", Usage.POINT)
+                .vertex("program/object/shadow_point.vsh")
+                .fragment("program/object/shadow_point.fsh")
+                .build()
+        );
+    }
 
-    pipeline.registerObjectShader(
-        new ObjectShader("textured", Usage.TERRAIN_SOLID)
-            .vertex("passes/object/all_solid.vsh")
-            .fragment("passes/object/all_solid.fsh")
-            .target(0, gbufferDataTex)
-            .build()
-    );
+    const solidPrograms: [ProgramUsage, string, string][] = [
+        [Usage.TERRAIN_SOLID, "terrain_solid", "OBJECT_TERRAIN_SOLID"],
+        [Usage.TERRAIN_CUTOUT, "terrain_cutout", "OBJECT_TERRAIN_CUTOUT"],
+    ];
 
-    pipeline.registerObjectShader(
-        new ObjectShader("textured2", Usage.TERRAIN_TRANSLUCENT)
-            .vertex("passes/object/all_solid.vsh")
-            .fragment("passes/object/all_solid.fsh")
-            .target(0, radianceTex)
-                .define("RAD", "1")
-            .build()
-    );
+    for (const [usage, name, macro] of solidPrograms) {
+        pipeline.registerObjectShader(
+            new ObjectShader(name, usage)
+                .vertex("program/object/all_solid.vsh")
+                .fragment("program/object/all_solid.fsh")
+                .target(0, gbufferDataTex)
+                .define(macro, "1")
+                .build()
+        );
+    }
 
     pipeline.registerPostPass(
         Stage.PRE_RENDER,
         new Compute("fill_global_data_buffer")
-            .location("passes/compute/fill_global_data_buffer.csh")
+            .location("program/pre_render/fill_global_data_buffer.csh")
             .workGroups(1, 1, 1)
             .ssbo(0, globalDataBuffer)
             .ssbo(1, exposureHistogramBuffer)
@@ -142,8 +158,8 @@ export function configurePipeline(pipeline: PipelineConfig) {
     pipeline.registerPostPass(
         Stage.PRE_RENDER,
         new Composite("render_sky_view")
-            .vertex("passes/composite.vsh")
-            .fragment("passes/composite/render_sky_view.fsh")
+            .vertex("program/composite.vsh")
+            .fragment("program/pre_render/render_sky_view.fsh")
             .target(0, skyViewTex)
             .ubo(0, globalDataBuffer)
             .build()
@@ -152,7 +168,7 @@ export function configurePipeline(pipeline: PipelineConfig) {
     pipeline.registerPostPass(
         Stage.PRE_RENDER,
         new Compute("gen_sky_sh")
-            .location("passes/compute/gen_sky_sh.csh")
+            .location("program/pre_render/gen_sky_sh.csh")
             .workGroups(1, 1, 1)
             .ssbo(0, skyShBuffer)
             .build()
@@ -162,8 +178,8 @@ export function configurePipeline(pipeline: PipelineConfig) {
     pipeline.registerPostPass(
         Stage.PRE_TRANSLUCENT,
         new Composite("deferred_shading")
-            .vertex("passes/composite.vsh")
-            .fragment("passes/composite/deferred_shading.fsh")
+            .vertex("program/composite.vsh")
+            .fragment("program/pre_translucent/deferred_shading.fsh")
             .target(0, radianceTex)
             .ubo(0, globalDataBuffer)
             .ubo(1, skyShBuffer)
@@ -173,7 +189,7 @@ export function configurePipeline(pipeline: PipelineConfig) {
     pipeline.registerPostPass(
         Stage.POST_RENDER,
         new Compute("exposure_build_histogram")
-            .location("passes/compute/exposure_build_histogram.csh")
+            .location("program/post_render/exposure_build_histogram.csh")
             .workGroups(
                 Math.ceil(screenWidth / (16 * exposureHistogramPixelsPerThreadX)), 
                 Math.ceil(screenHeight / (16 * exposureHistogramPixelsPerThreadY)), 
@@ -189,7 +205,7 @@ export function configurePipeline(pipeline: PipelineConfig) {
     pipeline.registerPostPass(
         Stage.POST_RENDER,
         new Compute("exposure_final")
-            .location("passes/compute/exposure_final.csh")
+            .location("program/post_render/exposure_final.csh")
             .workGroups(1, 1, 1)
             .ssbo(0, exposureBuffer)
             .ubo(0, exposureHistogramBuffer)
@@ -198,7 +214,7 @@ export function configurePipeline(pipeline: PipelineConfig) {
     pipeline.addBarrier(Stage.POST_RENDER, SSBO_BIT | UBO_BIT)
 
     pipeline.setCombinationPass(
-        new CombinationPass("passes/combination.fsh")
+        new CombinationPass("program/combination.fsh")
             .ubo(0, streamedSettingsBuffer)
             .ubo(1, exposureBuffer)
             .build()
@@ -213,8 +229,4 @@ export function beginFrame() {
 
 export function onSettingsChanged() {
     streamedSettingsBuffer.setFloat(0, getFloatSetting("EXPOSURE"));
-}
-
-function setLightColors() {
-    setLightColor(new NamespacedId("torch"), 255, 255, 255, 255);
 }

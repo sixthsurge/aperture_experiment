@@ -1,6 +1,8 @@
 #if !defined INCLUDE_MISC_MATERIAL
 #define INCLUDE_MISC_MATERIAL
 
+#include "/include/utility/color.glsl"
+
 const float air_n   = 1.000293; // for 0°C and 1 atm
 const float water_n = 1.333;    // for 20°C
 
@@ -90,7 +92,7 @@ Material material_from(vec3 albedo_srgb) {
 	// Create material with default values
 
 	Material material;
-	material.albedo             = srgb_eotf_inv(albedo_srgb);
+	material.albedo             = srgb_eotf_inv(albedo_srgb) * rec709_to_rec2020;
 	material.emission           = vec3(0.0);
 	material.f0                 = vec3(0.02);
 	material.f82                = vec3(0.0);

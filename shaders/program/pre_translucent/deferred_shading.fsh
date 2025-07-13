@@ -13,6 +13,10 @@ layout (std140, binding = 1) uniform
 uniform sampler2D solidDepthTex;
 uniform sampler2DArrayShadow solidShadowMapFiltered;
 
+#ifdef POINT_SHADOW
+uniform samplerCubeArrayShadow pointLightFiltered;
+#endif
+
 uniform sampler3D atmosphere_scattering_lut;
 uniform sampler2D gbuffer_data_tex;
 
@@ -21,8 +25,10 @@ uniform sampler2D gbuffer_data_tex;
 #include "/include/bsdf.glsl"
 #include "/include/gbuffer_encoding.glsl"
 #include "/include/material.glsl"
+#include "/include/material_mask.glsl"
 #include "/include/shadow/sampling.glsl"
 #include "/include/utility/color.glsl"
+#include "/include/utility/fast_math.glsl"
 #include "/include/utility/space_conversion.glsl"
 #include "/include/utility/spherical_harmonics.glsl"
 
@@ -36,22 +42,22 @@ void main() {
 
     // Space conversions
 
-    vec3 position_s = vec3(uv, depth);
-    vec3 position_v = screen_to_view_space(position_s);
-    vec3 position_p = view_to_scene_space(position_v);
-    vec3 position_w = position_p + ap.camera.pos;
+    vec3 pos_screen = vec3(uv, depth);
+    vec3 pos_view   = screen_to_view_space(pos_screen);
+    vec3 pos_scene  = view_to_scene_space(pos_view);
+    vec3 pos_world  = pos_scene + ap.camera.pos;
 
-    vec3 direction_w = normalize(position_p - ap.camera.view[3].xyz);
+    vec3 dir_w = normalize(pos_scene - ap.camera.view[3].xyz);
 
     if (depth == 1.0) {
         // Sky
         radiance_out = atmosphere_scattering(
             atmosphere_scattering_lut,
-            direction_w,
+            dir_w,
             sun_irradiance,
-            global.sun_direction,
+            global.sun_dir,
             moon_irradiance,
-            global.moon_direction,
+            global.moon_dir,
             true
         );
     } else {
@@ -67,9 +73,9 @@ void main() {
 
 		// Directional light
 
-		float NoL = dot(normal, global.light_direction);
-		float NoV = clamp01(dot(normal, -direction_w));
-		float LoV = dot(global.light_direction, -direction_w);
+		float NoL = dot(normal, global.light_dir);
+		float NoV = clamp01(dot(normal, -dir_w));
+		float LoV = dot(global.light_dir, -dir_w);
 		float halfway_norm = inversesqrt(2.0 * LoV + 2.0);
 		float NoH = (NoL + NoV) * halfway_norm;
 		float LoH = LoV * halfway_norm + halfway_norm;
@@ -91,7 +97,7 @@ void main() {
             LoV,
             LoH
         );
-        vec3 shadow = get_shadow(position_p, gbuffer_data.flat_normal);
+        vec3 shadow = get_shadow(pos_scene, gbuffer_data.flat_normal);
 
         radiance_out = (diffuse + specular) * shadow * global.light_irradiance;
 
@@ -103,6 +109,41 @@ void main() {
             1.0
         );
 
-        radiance_out += (material.albedo * rcp(pi)) * ambient_irradiance;
+        radiance_out += material.albedo * rcp(pi) * ambient_irradiance;
+
+        // Emission 
+
+        float emission = float(material_mask_emission(gbuffer_data.material_mask)) * rcp(15.0);
+        radiance_out += 0.1 * emission * material.albedo;
+
+        // Point shadows
+
+#ifdef POINT_SHADOW
+        for (uint i = 0; i <= ap.point.total; ++i) {
+            ap_PointLight light = iris_getPointLight(i);
+            if (light.block == -1) continue;
+
+            vec3 fragment_to_light = light.pos - pos_scene;
+            vec3 light_dir; float light_distance;
+            length_normalize(fragment_to_light, light_dir, light_distance);
+
+            // Sample shadow
+            float shadow_depth = linear_step(
+                ap.point.nearPlane,
+                ap.point.farPlane,
+                light_distance
+            );
+            float shadow = texture(pointLightFiltered, vec4(-light_dir, i), shadow_depth - 0.005).x;
+
+            float attenuation = rcp(sqr(light_distance));
+            float edge_fade = pow32(1.0 - shadow_depth);
+            float light_intensity = iris_getEmission(light.block);
+            vec3 light_color = srgb_eotf_inv(iris_getLightColor(light.block).rgb) * rec709_to_rec2020;
+
+            vec3 irradiance = 0.05 * light_color * (light_intensity * shadow * attenuation * edge_fade * max0(dot(normal, light_dir)));
+
+            radiance_out += material.albedo * irradiance * rcp(pi);
+        }
+#endif
     }
 }

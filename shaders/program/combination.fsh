@@ -28,6 +28,9 @@ void main() {
     // Exposure 
     color_out *= exposure.value;
 
+    // Rec. 2020 -> Rec. 709
+    color_out  = color_out * rec2020_to_rec709;
+
     // Tonemap
     color_out = tony_mcmapface(tony_mcmapface_lut, color_out);
 

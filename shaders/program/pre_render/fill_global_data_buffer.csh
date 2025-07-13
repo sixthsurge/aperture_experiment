@@ -13,12 +13,12 @@ layout (std140, binding = 1) buffer HistogramBuffer {
 } histogram;
 
 void main() {
-    global.light_direction = mat3(ap.camera.viewInv) * normalize(ap.celestial.pos);
-    global.sun_direction   = mat3(ap.camera.viewInv) * normalize(ap.celestial.sunPos);
-    global.moon_direction  = mat3(ap.camera.viewInv) * normalize(ap.celestial.moonPos);
+    global.light_dir = mat3(ap.camera.viewInv) * normalize(ap.celestial.pos);
+    global.sun_dir   = mat3(ap.camera.viewInv) * normalize(ap.celestial.sunPos);
+    global.moon_dir  = mat3(ap.camera.viewInv) * normalize(ap.celestial.moonPos);
 
     global.light_irradiance = atmosphere_transmittance(
-        global.light_direction.y, 
+        global.light_dir.y, 
         planet_radius
     ) * (ap.celestial.angle < 0.5 ? sun_irradiance : moon_irradiance);
 
