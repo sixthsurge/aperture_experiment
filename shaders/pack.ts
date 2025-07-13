@@ -1,29 +1,31 @@
 import type {} from './iris'
 
 const globalDataBufferSize = 64; 
+
 const exposureHistogramBins = 256;
+const exposureHistogramPixelsPerThreadX = 2;
+const exposureHistogramPixelsPerThreadY = 2;
 
 let streamedSettingsBuffer: BuiltStreamingBuffer;
 
-export function setupShader(dimension : NamespacedId) {
-    print(`AYUP ${dimension.getPath()}`);
-
+export function configureRenderer(renderer: RendererConfig) {
     // ------------------
     //   World Settings
     // ------------------
+renderer.disableShade          = true;
+    renderer.ambientOcclusionLevel = 0.0;
+    renderer.sunPathRotation       = 30.0;
 
-    worldSettings.disableShade          = true;
-    worldSettings.ambientOcclusionLevel = 0.0;
-    worldSettings.sunPathRotation       = 30.0;
+    renderer.render.sun            = false;
+    renderer.render.moon           = false;
+    renderer.render.waterOverlay   = false;
 
-    worldSettings.render.sun            = false;
-    worldSettings.render.moon           = false;
-    worldSettings.render.waterOverlay   = false;
+    renderer.shadow.enabled        = true;
+    renderer.shadow.resolution     = 1024;
+    renderer.shadow.cascades       = 4;
+}
 
-    worldSettings.shadow.resolution     = 1024;
-    worldSettings.shadow.cascades       = 4;
-    worldSettings.shadow.enable()
-
+export function configurePipeline(pipeline: PipelineConfig) {
     setLightColors();
 
     // ------------
@@ -51,7 +53,7 @@ export function setupShader(dimension : NamespacedId) {
         .build();
 
     let radianceTex = new Texture("radiance_tex")
-        .format(Format.RGB16F)
+        .format(Format.RGBA16F)
         .width(screenWidth)
         .height(screenHeight)
         .build();
@@ -93,22 +95,40 @@ export function setupShader(dimension : NamespacedId) {
     //   Passes
     // ----------
 
-    registerShader(
+    pipeline.registerObjectShader(
         new ObjectShader("shadow", Usage.SHADOW)
             .vertex("passes/object/shadow.vsh")
             .fragment("passes/object/shadow.fsh")
             .build()
     );
 
-    registerShader(
-        new ObjectShader("textured", Usage.TEXTURED)
+    pipeline.registerObjectShader(
+            new ObjectShader("textured2", Usage.BASIC)
+                    .vertex("passes/object/all_solid.vsh")
+                    .fragment("passes/object/all_solid.fsh")
+                    .target(0, radianceTex)
+                    .define("RAD", "1")
+                    .build()
+    );
+
+    pipeline.registerObjectShader(
+        new ObjectShader("textured", Usage.TERRAIN_SOLID)
             .vertex("passes/object/all_solid.vsh")
             .fragment("passes/object/all_solid.fsh")
             .target(0, gbufferDataTex)
             .build()
     );
 
-    registerShader(
+    pipeline.registerObjectShader(
+        new ObjectShader("textured2", Usage.TERRAIN_TRANSLUCENT)
+            .vertex("passes/object/all_solid.vsh")
+            .fragment("passes/object/all_solid.fsh")
+            .target(0, radianceTex)
+                .define("RAD", "1")
+            .build()
+    );
+
+    pipeline.registerPostPass(
         Stage.PRE_RENDER,
         new Compute("fill_global_data_buffer")
             .location("passes/compute/fill_global_data_buffer.csh")
@@ -117,9 +137,9 @@ export function setupShader(dimension : NamespacedId) {
             .ssbo(1, exposureHistogramBuffer)
             .build()
     );
-    registerBarrier(Stage.POST_RENDER, new MemoryBarrier(SSBO_BIT | UBO_BIT));
+    pipeline.addBarrier(Stage.PRE_RENDER, SSBO_BIT | UBO_BIT)
 
-    registerShader(
+    pipeline.registerPostPass(
         Stage.PRE_RENDER,
         new Composite("render_sky_view")
             .vertex("passes/composite.vsh")
@@ -129,7 +149,7 @@ export function setupShader(dimension : NamespacedId) {
             .build()
     );
 
-    registerShader(
+    pipeline.registerPostPass(
         Stage.PRE_RENDER,
         new Compute("gen_sky_sh")
             .location("passes/compute/gen_sky_sh.csh")
@@ -137,9 +157,9 @@ export function setupShader(dimension : NamespacedId) {
             .ssbo(0, skyShBuffer)
             .build()
     );
-    registerBarrier(Stage.POST_RENDER, new MemoryBarrier(SSBO_BIT | UBO_BIT));
+    pipeline.addBarrier(Stage.PRE_RENDER, SSBO_BIT | UBO_BIT)
 
-    registerShader(
+    pipeline.registerPostPass(
         Stage.PRE_TRANSLUCENT,
         new Composite("deferred_shading")
             .vertex("passes/composite.vsh")
@@ -150,17 +170,23 @@ export function setupShader(dimension : NamespacedId) {
             .build()
     );
 
-    registerShader(
+    pipeline.registerPostPass(
         Stage.POST_RENDER,
         new Compute("exposure_build_histogram")
             .location("passes/compute/exposure_build_histogram.csh")
-            .workGroups(Math.ceil(screenWidth / 8), Math.ceil(screenHeight / 8), 1)
+            .workGroups(
+                Math.ceil(screenWidth / (16 * exposureHistogramPixelsPerThreadX)), 
+                Math.ceil(screenHeight / (16 * exposureHistogramPixelsPerThreadY)), 
+                1
+            )
             .ssbo(0, exposureHistogramBuffer)
+            .define("PIXELS_PER_THREAD_X", exposureHistogramPixelsPerThreadX.toString())
+            .define("PIXELS_PER_THREAD_Y", exposureHistogramPixelsPerThreadY.toString())
             .build()
     );
-    registerBarrier(Stage.POST_RENDER, new MemoryBarrier(SSBO_BIT | UBO_BIT));
+    pipeline.addBarrier(Stage.POST_RENDER, SSBO_BIT | UBO_BIT)
 
-    registerShader(
+    pipeline.registerPostPass(
         Stage.POST_RENDER,
         new Compute("exposure_final")
             .location("passes/compute/exposure_final.csh")
@@ -169,9 +195,9 @@ export function setupShader(dimension : NamespacedId) {
             .ubo(0, exposureHistogramBuffer)
             .build()
     );
-    registerBarrier(Stage.POST_RENDER, new MemoryBarrier(SSBO_BIT | UBO_BIT));
+    pipeline.addBarrier(Stage.POST_RENDER, SSBO_BIT | UBO_BIT)
 
-    setCombinationPass(
+    pipeline.setCombinationPass(
         new CombinationPass("passes/combination.fsh")
             .ubo(0, streamedSettingsBuffer)
             .ubo(1, exposureBuffer)
@@ -181,7 +207,7 @@ export function setupShader(dimension : NamespacedId) {
     onSettingsChanged();
 }
 
-export function setupFrame() {
+export function beginFrame() {
     streamedSettingsBuffer.uploadData();
 }
 
