@@ -20,6 +20,4 @@ void iris_emitFragment() {
     // from null
     float near = f_in.is_full_block ? 0.5 : 0.49999;
     if (clamp(f_in.pos_model, -near, near) == f_in.pos_model) discard;
-
-    gl_FragDepth = linear_step(ap.point.nearPlane, ap.point.farPlane, length(f_in.pos_model));
 }
