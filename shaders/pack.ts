@@ -6,6 +6,8 @@ class Textures {
     gbufferData: BuiltTexture;
     skyView: BuiltTexture;
     exposureHistogram: BuiltTexture;
+    bloomTiles: BuiltTexture;
+    bloomTilesAlt: BuiltTexture;
 }
 
 class Buffers {
@@ -18,23 +20,21 @@ class StreamingBuffers {
     settings: BuiltStreamingBuffer;
 }
 
-class Settings {
-    pointShadowEnabled: boolean;
-    manualExposureValue: number;
+class StateReferences {
+    bloom: StateReference;
+    autoExposure: StateReference;
 }
 
 let streamingBuffers = new StreamingBuffers();
-let settings = new Settings();
+let stateReferences = new StateReferences();
 
-const streamedSettingsBufferSize = 4;
+const streamedSettingsBufferSize = 64;
 const globalDataBufferSize = 64; 
 
 const skyViewRes = [192, 108];
 const exposureHistogramBins = 256;
 
 export function configureRenderer(renderer: RendererConfig) {
-    loadSettings();
-
     renderer.sunPathRotation       = 30.0;
     renderer.ambientOcclusionLevel = 0.0;
     renderer.mergedHandDepth       = false;
@@ -53,12 +53,15 @@ export function configureRenderer(renderer: RendererConfig) {
     renderer.shadow.cascades       = 4;
     renderer.shadow.enabled        = true;
 
-    if (settings.pointShadowEnabled) {
-        renderer.pointLight.maxCount             = getIntSetting("POINT_SHADOW_MAX_COUNT");
-        renderer.pointLight.resolution           = getIntSetting("POINT_SHADOW_RESOLUTION");
+    if (getBoolSetting("pointShadowEnabled")) {
+        renderer.pointLight.maxCount             = getIntSetting("pointShadowMaxCount");
+        renderer.pointLight.resolution           = getIntSetting("pointShadowResolution");
         renderer.pointLight.nearPlane            = 0.1;
         renderer.pointLight.farPlane             = 16.0;
         renderer.pointLight.cacheRealTimeTerrain = true;
+        renderer.pointLight.realTimeCount        = 2;
+        renderer.pointLight.maxUpdates           = 1;
+        renderer.pointLight.updateThreshold      = 0.01;
     }
 }
 
@@ -68,6 +71,8 @@ export function configurePipeline(pipeline: PipelineConfig) {
     let textures = createTextures(pipeline);
 
     let buffers = createBuffers(pipeline);
+
+    createStateReferences();
 
     createGlobalMacros();
 
@@ -81,7 +86,7 @@ export function configurePipeline(pipeline: PipelineConfig) {
 
     createCombinationPass(pipeline, textures, buffers);
 
-    uploadStreamedSettings();
+    applyDynamicSettings();
 }
 
 export function beginFrame() {
@@ -89,8 +94,7 @@ export function beginFrame() {
 }
 
 export function onSettingsChanged() {
-    loadSettings();
-    uploadStreamedSettings();
+    applyDynamicSettings();
 }
 
 function createTextures(pipeline: PipelineConfig): Textures {
@@ -120,18 +124,37 @@ function createTextures(pipeline: PipelineConfig): Textures {
         .format(Format.RGBA16F)
         .width(screenWidth)
         .height(screenHeight)
+        .clear(false)
         .build();
 
     textures.gbufferData = pipeline.createTexture("gbuffer_data_tex")
         .format(Format.RGBA32UI)
         .width(screenWidth)
         .height(screenHeight)
+        .clear(false)
         .build();
 
     textures.skyView = pipeline.createTexture("sky_view_tex")
         .format(Format.RGB16F)
         .width(skyViewRes[0])
         .height(skyViewRes[1])
+        .clear(false)
+        .build();
+
+    textures.bloomTiles = pipeline.createTexture("bloom_tiles_tex")
+        .format(Format.RGB16F)
+        .width(screenWidth)
+        .height(screenHeight)
+        .mipmap(true)
+        .clear(false)
+        .build();
+
+    textures.bloomTilesAlt = pipeline.createTexture("bloom_tiles_alt_tex")
+        .format(Format.RGB16F)
+        .width(screenWidth)
+        .height(screenHeight)
+        .mipmap(true)
+        .clear(false)
         .build();
 
     textures.exposureHistogram 
@@ -139,7 +162,7 @@ function createTextures(pipeline: PipelineConfig): Textures {
             .format(Format.R32UI)
             .width(exposureHistogramBins)
             .height(1)
-            .clear(true)
+            .clear(false)
             .build();
 
     return textures;
@@ -212,7 +235,7 @@ function createObjectShaders(pipeline: PipelineConfig, textures: Textures, buffe
         .fragment("program/object/shadow.fsh")
         .compile();
 
-    if (settings.pointShadowEnabled) {
+    if (getBoolSetting("pointShadowEnabled")) {
         pipeline.createObjectShader("shadow_point", Usage.POINT)
             .vertex("program/object/shadow_point.vsh")
             .fragment("program/object/shadow_point.fsh")
@@ -260,7 +283,8 @@ function createPreTranslucentCommands(commands: CommandList, textures: Textures,
 }
 
 function createPostRenderCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
-    createExposureCommands(commands.subList("Exposure"), textures, buffers);
+    createBloomCommands(commands.subList("Bloom"), textures, buffers);
+    createExposureCommands(commands.subList("Auto Exposure"), textures, buffers);
 
     commands.end();
 }
@@ -269,6 +293,7 @@ function createExposureCommands(commands: CommandList, textures: Textures, buffe
     commands.createCompute("clear_histogram")
         .location("program/post_render/exposure/clear_histogram.csh")
         .workGroups(1, 1, 1)
+        .state(stateReferences.autoExposure)
         .compile();
 
     commands.barrier(IMAGE_BIT | FETCH_BIT);
@@ -280,6 +305,7 @@ function createExposureCommands(commands: CommandList, textures: Textures, buffe
             Math.ceil(screenHeight / 32), 
             1
         )
+        .state(stateReferences.autoExposure)
         .compile();
 
     commands.barrier(IMAGE_BIT | FETCH_BIT);
@@ -288,10 +314,105 @@ function createExposureCommands(commands: CommandList, textures: Textures, buffe
         .location("program/post_render/exposure/calculate_exposure.csh")
         .workGroups(1, 1, 1)
         .ssbo(0, buffers.exposure)
+        .state(stateReferences.autoExposure)
         .compile();
 
     commands.barrier(SSBO_BIT | UBO_BIT);
     
+    commands.end();
+}
+
+function createBloomCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
+    let textureFlipper = new Flipper<[BuiltTexture, string]>(
+        [textures.bloomTiles, "bloom_tiles_tex"],
+        [textures.bloomTilesAlt, "bloom_tiles_alt_tex"],
+    );
+
+    const tileCount = getIntSetting("bloomTileCount");
+
+    if (tileCount % 2 == 1) {
+        // Flip so that the final result ends up in textures.bloomTiles
+        textureFlipper.flip();
+    }
+
+    // Copy scene to initial tile
+
+    commands.copy(textures.radiance, textureFlipper.front()[0], screenWidth, screenHeight);
+
+    // Downsampling
+
+    let downsampling = commands.subList("Downsampling");
+
+    for (let i = 1; i < tileCount; i++) {
+        downsampling.createComposite(`downsample ${i}`)
+            .vertex("program/composite.vsh")
+            .fragment("program/post_render/bloom/downsample.fsh")
+            .target(0, textureFlipper.front()[0], i)
+            .define("SRC_TEX", textureFlipper.front()[1])
+            .define("SRC_LOD", (i - 1).toString())
+            .state(stateReferences.bloom)
+            .compile();
+    }
+
+    downsampling.end();
+
+    // Blur
+
+    let blur = commands.subList("Blur");
+
+    for (let i = 0; i < tileCount; i++) {
+        // Horizontal
+        blur.createComposite(`blur ${i} horizontal`)
+            .vertex("program/composite.vsh")
+            .fragment("program/post_render/bloom/blur.fsh")
+            .target(0, textureFlipper.back()[0], i)
+            .define("SRC_TEX", textureFlipper.front()[1])
+            .define("SRC_LOD", i.toString())
+            .state(stateReferences.bloom)
+            .compile();
+
+        textureFlipper.flip();
+
+        // Vertical
+        blur.createComposite(`blur ${i} vertical`)
+            .vertex("program/composite.vsh")
+            .fragment("program/post_render/bloom/blur.fsh")
+            .target(0, textureFlipper.back()[0], i)
+            .define("SRC_TEX", textureFlipper.front()[1])
+            .define("SRC_LOD", i.toString())
+            .define("BLUR_VERTICAL", "")
+            .state(stateReferences.bloom)
+            .compile();
+
+        textureFlipper.flip();
+
+    }
+
+    blur.end();
+
+    // Upsampling
+
+    let upsampling = commands.subList("Upsampling");
+
+    for (let i = 1; i < tileCount; i++) {
+        let srcLod = tileCount - i - 1;
+        let dstLod = srcLod - 1;
+
+        upsampling.createComposite(`upsample ${i}`)
+            .vertex("program/composite.vsh")
+            .fragment("program/post_render/bloom/upsample.fsh")
+            .target(0, textureFlipper.back()[0], dstLod)
+            .define("SRC_TEX", textureFlipper.front()[1])
+            .define("SRC_LOD", srcLod.toString())
+            .define("DST_LOD", dstLod.toString())
+            .state(stateReferences.bloom)
+            .compile();
+
+        textureFlipper.flip();
+    }
+
+    upsampling.end();
+
     commands.end();
 }
 
@@ -302,19 +423,63 @@ function createCombinationPass(pipeline: PipelineConfig, textures: Textures, buf
         .compile()
 }
 
-function loadSettings() {
-    settings.pointShadowEnabled = getBoolSetting("POINT_SHADOW");
-    settings.manualExposureValue = getFloatSetting("EXPOSURE");
-}
+function applyDynamicSettings() {
+    // State references
 
-function uploadStreamedSettings() {
-    streamingBuffers.settings.setFloat(0, settings.manualExposureValue);
+    stateReferences.bloom.setEnabled(getBoolSetting("bloomEnabled"));
+    stateReferences.autoExposure.setEnabled(getBoolSetting("autoExposureEnabled"));
+
+    // Streamed settings
+
+    streamingBuffers.settings.setBool(0, getBoolSetting("bloomEnabled"));
+    streamingBuffers.settings.setFloat(4, getFloatSetting("bloomIntensity"));
+    streamingBuffers.settings.setBool(8, getBoolSetting("autoExposureEnabled"));
+    streamingBuffers.settings.setFloat(16, getFloatSetting("manualExposureValue"));
 }
 
 function createGlobalMacros() {
-    if (settings.pointShadowEnabled) {
-        defineGlobally("POINT_SHADOW", "1");
+    defineGlobally("TEXTURE_FORMAT", "TEXTURE_FORMAT_LAB");
+    defineGlobally("HISTOGRAM_BINS", exposureHistogramBins);
+
+    defineGloballyIf("USE_NORMAL_MAP", 1, getBoolSetting("normalMapEnabled"));
+    defineGloballyIf("USE_SPECULAR_MAP", 1, getBoolSetting("specularMapEnabled"));
+    defineGloballyIf("POINT_SHADOW", 1, getBoolSetting("pointShadowEnabled"));
+}
+
+function createStateReferences() {
+    stateReferences.bloom = new StateReference();
+    stateReferences.autoExposure = new StateReference();
+}
+
+// Utilities
+
+class Flipper<T> {
+    a: T;
+    b: T;
+    flipped: boolean;
+
+    constructor(a: T, b: T) {
+        this.a = a;
+        this.b = b;
+        this.flipped = false;
     }
 
-    defineGlobally("HISTOGRAM_BINS", exposureHistogramBins);
+    flip() {
+        this.flipped = !this.flipped;
+    }
+
+    front() {
+        return this.flipped ? this.b : this.a;
+    }
+
+    back() {
+        return this.flipped ? this.a : this.b;
+    }
 }
+
+function defineGloballyIf(key: string, value: string | number, condition: boolean) {
+    if (condition) {
+        defineGlobally(key, value);
+    }
+}
+

@@ -17,6 +17,10 @@ vec3 get_shadow(
     vec3 position_p,
     vec3 flat_normal_w
 ) {
+    if (dot(flat_normal_w, global.light_dir) < eps) {
+        return vec3(0.0);
+    }
+
     float bias = 0.05;
     position_p += bias * flat_normal_w;
 

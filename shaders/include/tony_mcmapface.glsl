@@ -31,7 +31,7 @@ This is a GLSL port of the "Tony McMapface" display transform by Tomasz Stachowi
 
 // "HDR Rec.709/sRGB stimulus, and maps it to LDR"
 vec3 tony_mcmapface(sampler3D LUT, vec3 stimulus) {
-    vec3 encoded = max(stimulus / (stimulus + 1.0), 0.0);
+    vec3 encoded = clamp01(stimulus / (stimulus + 1.0));
 
     // compute UVs
     const float LUT_DIMS = 48.0;

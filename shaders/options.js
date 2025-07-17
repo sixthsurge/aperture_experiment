@@ -1,15 +1,24 @@
 // options.ts
 function setupOptions() {
-  return new Page("main").add(
-    new Page("point_shadow").add(
-      asBool("POINT_SHADOW", false, true)
+  return new Page("main").add(asBool("normalMapEnabled", false, true)).add(asBool("specularMapEnabled", false, true)).add(
+    new Page("pointShadow").add(
+      asBool("pointShadowEnabled", false, true)
     ).add(
-      asInt("POINT_SHADOW_MAX_COUNT", ...range(0, 256, 1)).needsReload(true).build(64)
+      asInt("pointShadowMaxCount", ...range(0, 256, 1)).needsReload(true).build(64)
     ).add(
-      asInt("POINT_SHADOW_RESOLUTION", ...range(256, 2048, 256)).needsReload(true).build(256)
+      asInt("pointShadowResolution", ...range(256, 2048, 256)).needsReload(true).build(256)
     ).build()
   ).add(
-    asFloat("EXPOSURE", ...range(0, 1024, 1)).needsReload(false).build(8)
+    new Page("bloom").add(asBool("bloomEnabled", true, false)).add(
+      asFloat("bloomIntensity", ...range(0.01, 1.00, 0.01)).needsReload(false).build(0.05),
+      asInt("bloomTileCount", ...range(1, 12, 1)).needsReload(true).build(7),
+    ).build()
+  ).add(
+    new Page("exposure").add(
+      asBool("autoExposureEnabled", true, false)
+    ).add(
+      asFloat("manualExposureValue", ...range(0, 1024, 1)).needsReload(false).build(8)
+    ).build()
   ).build();
 }
 function range(min, max, step) {

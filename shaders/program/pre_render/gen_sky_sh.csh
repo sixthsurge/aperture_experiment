@@ -35,46 +35,24 @@ void main() {
 
 	// Sum samples using parallel reduction
 
-	/*
 	for (uint stride = sample_count / 2u; stride > 0u; stride /= 2u) {
-		if (i < stride) {
-			for (uint band = 0u; band < 9u; ++band) {
-				shared_memory[i][band] += shared_memory[i + stride][band];
-			}
+		if (i >= stride) {
+			return;
+		}
+
+		for (uint band = 0u; band < 9u; ++band) {
+			shared_memory[i][band] += shared_memory[i + stride][band];
 		}
 
 		barrier();
 	}
-	*/
-
-	// Loop manually unrolled as Intel doesn't seem to like barrier() calls in loops
-	#define PARALLEL_REDUCTION_ITER(STRIDE)                                  \
-		if (i < (STRIDE)) {                                                  \
-			for (uint band = 0u; band < 9u; ++band) {                        \
-				shared_memory[i][band] += shared_memory[i + (STRIDE)][band]; \
-			}                                                                \
-		}                                                                    \
-		barrier();                          
-
-	PARALLEL_REDUCTION_ITER(128u)
-	PARALLEL_REDUCTION_ITER(64u)
-	PARALLEL_REDUCTION_ITER(32u)
-	PARALLEL_REDUCTION_ITER(16u)
-	PARALLEL_REDUCTION_ITER(8u)
-	PARALLEL_REDUCTION_ITER(4u)
-	PARALLEL_REDUCTION_ITER(2u)
-	PARALLEL_REDUCTION_ITER(1u)
-
-	#undef PARALLEL_REDUCTION_ITER
 
 	// Save SH coeff in SH skylight buffer
 
-	if (i == 0u) {
-		for (uint band = 0u; band < 9u; ++band) {
-			sky_sh.coeff[i] = shared_memory[0][band];
-		}
-
-		// Store irradiance facing up for forward lighting 
-		sky_sh.irradiance_up = sh_evaluate_irradiance(shared_memory[0], vec3(0.0, 1.0, 0.0), 1.0);
+	for (uint band = 0u; band < 9u; ++band) {
+		sky_sh.coeff[i] = shared_memory[0][band];
 	}
+
+	// Store irradiance facing up for forward lighting 
+	sky_sh.irradiance_up = sh_evaluate_irradiance(shared_memory[0], vec3(0.0, 1.0, 0.0), 1.0);
 }

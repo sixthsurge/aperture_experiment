@@ -28,5 +28,5 @@ void iris_emitFragment() {
     // Alpha test
     if (iris_discardFragment(base_color)) discard;
 
-    color_out = base_color;
+    color_out = vec4(vec3(0.0), base_color.a);
 }

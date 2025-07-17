@@ -12,6 +12,8 @@ in vec2 uv;
 uniform sampler3D tony_mcmapface_lut;
 
 uniform sampler2D radiance_tex;
+uniform sampler2D bloom_tiles_tex;
+uniform sampler2D bloom_tiles_alt_tex;
 
 layout (std140, binding = 0) uniform StreamedSettingsBuffer {
     StreamedSettings streamed_settings;
@@ -25,8 +27,18 @@ void main() {
 
     color_out = texelFetch(radiance_tex, pixel_pos, 0).rgb;
 
+    // Apply bloom
+    if (streamed_settings.bloom_enabled) {
+        vec3 bloom = texelFetch(bloom_tiles_tex, pixel_pos, 0).rgb;
+        color_out = mix(color_out, bloom, streamed_settings.bloom_intensity * 0.3);
+    }
+
     // Exposure 
-    color_out *= exposure.value;
+    if (streamed_settings.auto_exposure_enabled) {
+        color_out *= exposure.value;
+    } else {
+        color_out *= streamed_settings.manual_exposure_value;
+    }
 
     // Rec. 2020 -> Rec. 709
     color_out  = color_out * rec2020_to_rec709;

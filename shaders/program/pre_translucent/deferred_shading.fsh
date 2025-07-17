@@ -70,11 +70,15 @@ void main() {
 
         GbufferData gbuffer_data = decode_gbuffer_data(encoded_gbuffer_data);
 
-        vec3 normal = gbuffer_data.flat_normal;
+        vec3 normal = gbuffer_data.detail_normal;
 
         // Get material
 
         Material material = material_from(gbuffer_data.base_color);
+
+#ifdef USE_SPECULAR_MAP
+        decode_specular_map(gbuffer_data.specular_map, material);
+#endif
 
 		// Directional light
 
@@ -112,7 +116,7 @@ void main() {
             sky_sh.coeff, 
             normal, 
             1.0
-        );
+        ) * sqr(gbuffer_data.lightmap.y);
 
         radiance_out += material.albedo * rcp(pi) * ambient_irradiance;
 
@@ -139,15 +143,19 @@ void main() {
                 ap.point.farPlane,
                 light_distance
             );
+            if (shadow_depth > 1.0) {
+                continue;
+            }
 
             // Normalize depth to NDC space [-1 to +1]
             // From point shadow sample by Null
             float sample_dist = max_of(abs(fragment_to_light)) - 0.02;
             float ndc_depth = (ap.point.farPlane + ap.point.nearPlane - 2.0 * ap.point.nearPlane * ap.point.farPlane / sample_dist) / (ap.point.farPlane - ap.point.nearPlane);
-            float shadow = texture(pointLightFiltered, vec4(-light_dir, i), ndc_depth * 0.5 + 0.5).x;
+            float shadow = texture(pointLightFiltered, vec4(-light_dir, i), ndc_depth * 0.5 + 0.5).x
+                * float(dot(gbuffer_data.flat_normal, light_dir) > eps);
 
             float attenuation = rcp(sqr(light_distance));
-            float edge_fade = 1.0 - pow32(shadow_depth);
+            float edge_fade = 1.0 - pow8(shadow_depth);
             float light_intensity = iris_getEmission(light.block);
             vec3 light_color = srgb_eotf_inv(iris_getLightColor(light.block).rgb) * rec709_to_rec2020;
 
