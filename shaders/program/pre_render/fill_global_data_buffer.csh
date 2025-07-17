@@ -1,12 +1,14 @@
 #version 430
-
 #include "/include/prelude.glsl"
-#include "/include/atmosphere.glsl"
+#include "/include/buffer/global.glsl"
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 
-layout (std140, binding = 0) buffer 
-#include "/include/buffer/global.glsl"
+layout (std140, binding = 0) buffer GlobalBuffer {
+    GlobalData global;
+};
+
+#include "/include/atmosphere.glsl"
 
 void main() {
     global.light_dir = mat3(ap.camera.viewInv) * normalize(ap.celestial.pos);

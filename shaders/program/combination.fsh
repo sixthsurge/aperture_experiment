@@ -1,9 +1,7 @@
 #version 430
-
 #include "/include/prelude.glsl"
+#include "/include/buffer/exposure.glsl"
 #include "/include/buffer/streamed_settings.glsl"
-#include "/include/utility/color.glsl"
-#include "/include/tony_mcmapface.glsl"
 
 layout (location = 0) out vec3 color_out;
 
@@ -19,8 +17,13 @@ layout (std140, binding = 0) uniform StreamedSettingsBuffer {
     StreamedSettings streamed_settings;
 };
 
-layout (std140, binding = 1) uniform 
-#include "/include/buffer/exposure.glsl"
+layout (std140, binding = 1) uniform ExposureBuffer {
+    ExposureData exposure;
+};
+
+#include "/include/tony_mcmapface.glsl"
+#include "/include/utility/color.glsl"
+#include "/include/utility/dithering.glsl"
 
 void main() {
     ivec2 pixel_pos = ivec2(gl_FragCoord.xy);
@@ -48,4 +51,7 @@ void main() {
 
     // Linear -> sRGB
     color_out = srgb_eotf(color_out);
+
+    // Dithering
+    color_out = dither_8bit(color_out, bayer16(vec2(pixel_pos)));
 }

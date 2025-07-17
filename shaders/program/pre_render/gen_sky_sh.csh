@@ -1,16 +1,18 @@
 #version 430
 #include "/include/prelude.glsl"
+#include "/include/buffer/sky_sh.glsl"
 
 layout (local_size_x = 256) in;
 
-layout (std140, binding = 0) buffer
-#include "/include/buffer/sky_sh.glsl"
+shared vec3 shared_memory[256][9];
 
-uniform sampler2D sky_view_tex;
+layout (std140, binding = 0) buffer SkyShBuffer {
+	SkySh sky_sh;
+};
 
 layout (r32ui) uniform writeonly uimage2D exposure_histogram_img;
 
-shared vec3 shared_memory[256][9];
+uniform sampler2D sky_view_tex;
 
 #include "/include/sky/projection.glsl"
 #include "/include/utility/random.glsl"

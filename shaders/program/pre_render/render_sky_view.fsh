@@ -1,15 +1,17 @@
 #version 430
+#include "/include/prelude.glsl"
+#include "/include/buffer/global.glsl"
 
 layout (location = 0) out vec3 sky_view_out;
 
 noperspective in vec2 uv;
 
-layout (std140, binding = 0) uniform
-#include "/include/buffer/global.glsl"
+layout (std140, binding = 0) uniform GlobalBuffer {
+    GlobalData global;
+};
 
 uniform sampler3D atmosphere_scattering_lut;
 
-#include "/include/prelude.glsl"
 #include "/include/atmosphere.glsl"
 #include "/include/sky/projection.glsl"
 

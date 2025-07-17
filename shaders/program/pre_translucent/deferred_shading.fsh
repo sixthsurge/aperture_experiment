@@ -1,14 +1,19 @@
 #version 430
+#include "/include/prelude.glsl"
+#include "/include/buffer/global.glsl"
+#include "/include/buffer/sky_sh.glsl"
 
 layout (location = 0) out vec3 radiance_out;
 
 noperspective in vec2 uv;
 
-layout (std140, binding = 0) uniform
-#include "/include/buffer/global.glsl"
+layout (std140, binding = 0) uniform GlobalBuffer {
+    GlobalData global;
+};
 
-layout (std140, binding = 1) uniform
-#include "/include/buffer/sky_sh.glsl"
+layout (std140, binding = 1) uniform SkyShBuffer {
+    SkySh sky_sh;
+};
 
 uniform sampler2D solidDepthTex;
 uniform sampler2D handDepth;
@@ -21,7 +26,6 @@ uniform samplerCubeArrayShadow pointLightFiltered;
 uniform sampler3D atmosphere_scattering_lut;
 uniform usampler2D gbuffer_data_tex;
 
-#include "/include/prelude.glsl"
 #include "/include/atmosphere.glsl"
 #include "/include/bsdf.glsl"
 #include "/include/gbuffer_encoding.glsl"

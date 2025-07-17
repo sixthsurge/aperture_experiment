@@ -1,4 +1,4 @@
-GlobalBuffer {
+struct GlobalData {
     vec3 light_dir;
     float pad0;
 
@@ -10,4 +10,4 @@ GlobalBuffer {
 
     vec3 light_irradiance;
     float pad3;
-} global;
+};
