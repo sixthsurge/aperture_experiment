@@ -96,10 +96,6 @@ vec3 atmosphere_scattering_uv(float nu, float mu, float mu_s) {
 	float u_nu = (nu_min == nu_max) ? nu_min : (nu - nu_min) / (nu_max - nu_min);
 	      u_nu = get_uv_from_unit_range(u_nu, scattering_res.x);
 
-	// Stretch the sky near the horizon upwards (to make it easier to admire the sunset without zooming in)
-
-	if (mu > 0.0) mu *= sqrt(sqrt(mu));
-
 	// Mapping for mu
 
 	const float r = planet_radius; // distance to the planet centre
@@ -234,10 +230,6 @@ vec3 atmosphere_scattering(
 
 	float u_nu_moon = (nu_min == nu_max) ? nu_min : (nu_moon - nu_min) / (nu_max - nu_min);
 	      u_nu_moon = get_uv_from_unit_range(u_nu_moon, scattering_res.x);
-
-	// Stretch the sky near the horizon upwards (to make it easier to admire the sunset without zooming in)
-
-	if (mu > 0.0) mu *= sqrt(sqrt(mu));
 
 	// Mapping for mu
 

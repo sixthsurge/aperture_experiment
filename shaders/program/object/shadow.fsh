@@ -1,11 +1,16 @@
 #version 430
 
-in VertexOutput {
+in VertexOutputs {
     vec2 atlas_uv;
     vec4 color;
-} f_in;
+} inputs;
 
 void iris_emitFragment() {
-    vec4 base_color = iris_sampleBaseTex(f_in.atlas_uv) * f_in.color;
+    vec2 new_atlas_uv = inputs.atlas_uv;
+    vec2 new_lightmap;
+    vec4 new_color    = inputs.color;
+    iris_modifyBase(new_atlas_uv, new_color, new_lightmap);
+
+    vec4 base_color = iris_sampleBaseTex(inputs.atlas_uv) * inputs.color;
     if (iris_discardFragment(base_color)) discard;
 }

@@ -11,6 +11,7 @@ layout (std140, binding = 1) uniform
 #include "/include/buffer/sky_sh.glsl"
 
 uniform sampler2D solidDepthTex;
+uniform sampler2D handDepth;
 uniform sampler2DArrayShadow solidShadowMapFiltered;
 
 #ifdef POINT_SHADOW
@@ -18,7 +19,7 @@ uniform samplerCubeArrayShadow pointLightFiltered;
 #endif
 
 uniform sampler3D atmosphere_scattering_lut;
-uniform sampler2D gbuffer_data_tex;
+uniform usampler2D gbuffer_data_tex;
 
 #include "/include/prelude.glsl"
 #include "/include/atmosphere.glsl"
@@ -33,14 +34,18 @@ uniform sampler2D gbuffer_data_tex;
 #include "/include/utility/spherical_harmonics.glsl"
 
 void main() {
-    ivec2 pixel_pos = ivec2(gl_FragCoord.xy);
+    ivec2 iuv = ivec2(gl_FragCoord.xy);
 
     // Sample textures
 
-    float depth = texelFetch(solidDepthTex, pixel_pos, 0).x;
-    vec4 encoded_gbuffer_data = texelFetch(gbuffer_data_tex, pixel_pos, 0);
+    float depth = texelFetch(solidDepthTex, iuv, 0).x;
+    float hand_depth = texelFetch(handDepth, iuv, 0).x;
+    uvec4 encoded_gbuffer_data = texelFetch(gbuffer_data_tex, iuv, 0);
 
     // Space conversions
+
+    bool is_hand = hand_depth != 1.0;
+    if (is_hand) { depth = hand_depth; }
 
     vec3 pos_screen = vec3(uv, depth);
     vec3 pos_view   = screen_to_view_space(pos_screen);
@@ -99,7 +104,7 @@ void main() {
         );
         vec3 shadow = get_shadow(pos_scene, gbuffer_data.flat_normal);
 
-        radiance_out = (diffuse + specular) * shadow * global.light_irradiance;
+        radiance_out = (diffuse + specular) * max0(NoL) * shadow * global.light_irradiance;
 
         // Ambient light 
 

@@ -4,19 +4,20 @@
  * Thanks to Bálint Csala for help with optimisation
  */
 
+#define PIXELS_PER_THREAD_X 2
+#define PIXELS_PER_THREAD_Y 2
+
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
-layout (std140, binding = 0) buffer HistogramBuffer {
-    uint bin[256];
-} histogram;
+layout (r32ui) uniform restrict uimage2D exposure_histogram_img;
+
+shared uint[256] local_histogram;
 
 uniform sampler2D radiance_tex;
 
 #include "/include/prelude.glsl"
 #include "/include/exposure.glsl"
 #include "/include/utility/color.glsl"
-
-shared uint[256] local_histogram;
 
 void add_to_histogram(vec3 radiance) {
     float luminance = dot(radiance, luminance_weights_rec709);
@@ -55,5 +56,9 @@ void main() {
 
     // Add local histogram to global histogram
     barrier();
-    atomicAdd(histogram.bin[gl_LocalInvocationIndex], local_histogram[gl_LocalInvocationIndex]);
+    imageAtomicAdd(
+        exposure_histogram_img, 
+        ivec2(gl_LocalInvocationIndex, 0), 
+        local_histogram[gl_LocalInvocationIndex]
+    );
 }

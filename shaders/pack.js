@@ -1,3 +1,7 @@
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+
 // script/lightColorsNull.ts
 function hexToRgb(hex) {
   const bigint = parseInt(hex.substring(1), 16);
@@ -78,23 +82,53 @@ function configureLightColors() {
 }
 
 // pack.ts
+var Settings = class {
+  constructor() {
+    __publicField(this, "pointShadowEnabled");
+    __publicField(this, "manualExposureValue");
+  }
+};
+var Textures = class {
+  constructor() {
+    __publicField(this, "radiance");
+    __publicField(this, "gbufferData");
+    __publicField(this, "skyView");
+    __publicField(this, "exposureHistogram");
+  }
+};
+var Buffers = class {
+  constructor() {
+    __publicField(this, "streamedSettings");
+    __publicField(this, "globalData");
+    __publicField(this, "skySh");
+    __publicField(this, "exposure");
+  }
+};
+var settings = new Settings();
+var textures = new Textures();
+var buffers = new Buffers();
+var streamedSettingsBufferSize = 4;
 var globalDataBufferSize = 64;
+var skyViewRes = [192, 108];
 var exposureHistogramBins = 256;
-var exposureHistogramPixelsPerThreadX = 2;
-var exposureHistogramPixelsPerThreadY = 2;
-var streamedSettingsBuffer;
 function configureRenderer(renderer) {
-  renderer.disableShade = true;
-  renderer.ambientOcclusionLevel = 0;
+  loadSettings();
   renderer.sunPathRotation = 30;
+  renderer.ambientOcclusionLevel = 0;
+  renderer.mergedHandDepth = false;
+  renderer.disableShade = true;
   renderer.render.sun = false;
   renderer.render.moon = false;
+  renderer.render.stars = false;
+  renderer.render.horizon = false;
+  renderer.render.clouds = false;
+  renderer.render.vignette = false;
   renderer.render.waterOverlay = false;
-  renderer.shadow.enabled = true;
+  renderer.render.entityShadow = false;
   renderer.shadow.resolution = 1024;
   renderer.shadow.cascades = 4;
-  let pointLightsEnabled = getBoolSetting("POINT_SHADOW");
-  if (pointLightsEnabled) {
+  renderer.shadow.enabled = true;
+  if (settings.pointShadowEnabled) {
     renderer.pointLight.maxCount = getIntSetting("POINT_SHADOW_MAX_COUNT");
     renderer.pointLight.resolution = getIntSetting("POINT_SHADOW_RESOLUTION");
     renderer.pointLight.nearPlane = 0.1;
@@ -104,80 +138,111 @@ function configureRenderer(renderer) {
 }
 function configurePipeline(pipeline) {
   configureLightColors();
-  let pointLightsEnabled = getBoolSetting("POINT_SHADOW");
-  new RawTexture("atmosphere_scattering_lut", "data/atmosphere_scattering.dat").width(32).height(64).depth(32).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).build();
-  new RawTexture("tony_mcmapface_lut", "data/tony_mcmapface_lut_f16.dat").width(48).height(48).depth(48).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).build();
-  let radianceTex = new Texture("radiance_tex").format(Format.RGBA16F).width(screenWidth).height(screenHeight).build();
-  let gbufferDataTex = new Texture("gbuffer_data_tex").format(Format.RGBA16).width(screenWidth).height(screenHeight).build();
-  let skyViewTex = new Texture("sky_view_tex").format(Format.RGB16F).width(192).height(108).build();
-  streamedSettingsBuffer = new StreamingBuffer(4).build();
-  let globalDataBuffer = new GPUBuffer(globalDataBufferSize).build();
-  let skyShBuffer = new GPUBuffer(4 * 4 * 9).build();
-  let exposureHistogramBuffer = new GPUBuffer(4 * 4 * exposureHistogramBins).build();
-  let exposureBuffer = new GPUBuffer(4 * 2).build();
-  if (pointLightsEnabled) {
-    defineGlobally("POINT_SHADOW", "1");
-  }
-  defineGlobally("HISTOGRAM_BINS", exposureHistogramBins);
-  pipeline.registerObjectShader(
-    new ObjectShader("shadow", Usage.SHADOW).vertex("program/object/shadow.vsh").fragment("program/object/shadow.fsh").build()
-  );
-  if (pointLightsEnabled) {
-    pipeline.registerObjectShader(
-      new ObjectShader("shadow_point", Usage.POINT).vertex("program/object/shadow_point.vsh").fragment("program/object/shadow_point.fsh").build()
-    );
-  }
-  const solidPrograms = [
-    [Usage.TERRAIN_SOLID, "terrain_solid", "OBJECT_TERRAIN_SOLID"],
-    [Usage.TERRAIN_CUTOUT, "terrain_cutout", "OBJECT_TERRAIN_CUTOUT"]
-  ];
-  for (const [usage, name, macro] of solidPrograms) {
-    pipeline.registerObjectShader(
-      new ObjectShader(name, usage).vertex("program/object/all_solid.vsh").fragment("program/object/all_solid.fsh").target(0, gbufferDataTex).define(macro, "1").build()
-    );
-  }
-  pipeline.registerPostPass(
-    Stage.PRE_RENDER,
-    new Compute("fill_global_data_buffer").location("program/pre_render/fill_global_data_buffer.csh").workGroups(1, 1, 1).ssbo(0, globalDataBuffer).ssbo(1, exposureHistogramBuffer).build()
-  );
-  pipeline.addBarrier(Stage.PRE_RENDER, SSBO_BIT | UBO_BIT);
-  pipeline.registerPostPass(
-    Stage.PRE_RENDER,
-    new Composite("render_sky_view").vertex("program/composite.vsh").fragment("program/pre_render/render_sky_view.fsh").target(0, skyViewTex).ubo(0, globalDataBuffer).build()
-  );
-  pipeline.registerPostPass(
-    Stage.PRE_RENDER,
-    new Compute("gen_sky_sh").location("program/pre_render/gen_sky_sh.csh").workGroups(1, 1, 1).ssbo(0, skyShBuffer).build()
-  );
-  pipeline.addBarrier(Stage.PRE_RENDER, SSBO_BIT | UBO_BIT);
-  pipeline.registerPostPass(
-    Stage.PRE_TRANSLUCENT,
-    new Composite("deferred_shading").vertex("program/composite.vsh").fragment("program/pre_translucent/deferred_shading.fsh").target(0, radianceTex).ubo(0, globalDataBuffer).ubo(1, skyShBuffer).build()
-  );
-  pipeline.registerPostPass(
-    Stage.POST_RENDER,
-    new Compute("exposure_build_histogram").location("program/post_render/exposure_build_histogram.csh").workGroups(
-      Math.ceil(screenWidth / (16 * exposureHistogramPixelsPerThreadX)),
-      Math.ceil(screenHeight / (16 * exposureHistogramPixelsPerThreadY)),
-      1
-    ).ssbo(0, exposureHistogramBuffer).define("PIXELS_PER_THREAD_X", exposureHistogramPixelsPerThreadX.toString()).define("PIXELS_PER_THREAD_Y", exposureHistogramPixelsPerThreadY.toString()).build()
-  );
-  pipeline.addBarrier(Stage.POST_RENDER, SSBO_BIT | UBO_BIT);
-  pipeline.registerPostPass(
-    Stage.POST_RENDER,
-    new Compute("exposure_final").location("program/post_render/exposure_final.csh").workGroups(1, 1, 1).ssbo(0, exposureBuffer).ubo(0, exposureHistogramBuffer).build()
-  );
-  pipeline.addBarrier(Stage.POST_RENDER, SSBO_BIT | UBO_BIT);
-  pipeline.setCombinationPass(
-    new CombinationPass("program/combination.fsh").ubo(0, streamedSettingsBuffer).ubo(1, exposureBuffer).build()
-  );
+  createTextures(pipeline);
+  createBuffers(pipeline);
+  createGlobalMacros();
+  createObjectShaders(pipeline);
+  createPreRenderCommands(pipeline.forStage(Stage.PRE_RENDER));
+  createPreTranslucentCommands(pipeline.forStage(Stage.PRE_TRANSLUCENT));
+  createPostRenderCommands(pipeline.forStage(Stage.POST_RENDER));
+  createCombinationPass(pipeline);
   onSettingsChanged();
 }
 function beginFrame() {
-  streamedSettingsBuffer.uploadData();
+  buffers.streamedSettings.uploadData();
 }
 function onSettingsChanged() {
-  streamedSettingsBuffer.setFloat(0, getFloatSetting("EXPOSURE"));
+  loadSettings();
+  buffers.streamedSettings.setFloat(0, settings.manualExposureValue);
+}
+function createTextures(pipeline) {
+  textures.radiance = pipeline.createTexture("radiance_tex").format(Format.RGBA16F).width(screenWidth).height(screenHeight).build();
+  textures.gbufferData = pipeline.createTexture("gbuffer_data_tex").format(Format.RGBA32UI).width(screenWidth).height(screenHeight).build();
+  textures.skyView = pipeline.createTexture("sky_view_tex").format(Format.RGB16F).width(skyViewRes[0]).height(skyViewRes[1]).build();
+  textures.exposureHistogram = pipeline.createImageTexture("exposure_histogram_tex", "exposure_histogram_img").format(Format.R32UI).width(exposureHistogramBins).height(1).clear(true).build();
+  pipeline.importRawTexture("atmosphere_scattering_lut", "data/atmosphere_scattering.dat").width(32).height(64).depth(32).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).load();
+  pipeline.importRawTexture("tony_mcmapface_lut", "data/tony_mcmapface_lut_f16.dat").width(48).height(48).depth(48).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).load();
+}
+function createBuffers(pipeline) {
+  buffers.streamedSettings = pipeline.createStreamingBuffer(streamedSettingsBufferSize);
+  buffers.globalData = pipeline.createBuffer(globalDataBufferSize, false);
+  buffers.skySh = pipeline.createBuffer(4 * 4 * 9, false);
+  buffers.exposure = pipeline.createBuffer(4 * 2, false);
+}
+function createObjectShaders(pipeline) {
+  const solidPrograms = [
+    [Usage.TERRAIN_SOLID, "terrain_solid", "OBJECT_TERRAIN_SOLID"],
+    [Usage.TERRAIN_CUTOUT, "terrain_cutout", "OBJECT_TERRAIN_CUTOUT"],
+    [Usage.ENTITY_SOLID, "entity_solid", "OBJECT_ENTITY_SOLID"],
+    [Usage.ENTITY_CUTOUT, "entity_cutout", "OBJECT_ENTITY_CUTOUT"],
+    [Usage.BLOCK_ENTITY, "block_entity", "OBJECT_BLOCK_ENTITY"],
+    [Usage.PARTICLES, "particles", "OBJECT_PARTICLES"],
+    [Usage.HAND, "hand", "OBJECT_HAND"],
+    [Usage.EMISSIVE, "emissive", "OBJECT_EMISSIVE"],
+    [Usage.BASIC, "basic", "OBJECT_BASIC"],
+    [Usage.LINES, "lines", "OBJECT_LINES"]
+  ];
+  for (const [usage, name, macro] of solidPrograms) {
+    pipeline.createObjectShader(name, usage).vertex("program/object/all_solid.vsh").fragment("program/object/all_solid.fsh").target(0, textures.gbufferData).define(macro, "1").compile();
+  }
+  const translucentPrograms = [
+    [Usage.TERRAIN_TRANSLUCENT, "terrain_translucent", "OBJECT_TERRAIN_TRANSLUCENT"],
+    [Usage.ENTITY_TRANSLUCENT, "entity_translucent", "OBJECT_ENTITY_TRANSLUCENT"],
+    [Usage.BLOCK_ENTITY_TRANSLUCENT, "block_entity_translucent", "OBJECT_BLOCK_ENTITY_TRANSLUCENT"],
+    [Usage.PARTICLES_TRANSLUCENT, "particles_translucent", "OBJECT_PARTICLES_TRANSLUCENT"],
+    [Usage.TRANSLUCENT_HAND, "translucent_hand", "OBJECT_TRANSLUCENT_HAND"],
+    [Usage.TEXTURED, "textured", "OBJECT_TEXTURED"],
+    [Usage.TEXT, "text", "OBJECT_TEXT"]
+  ];
+  for (const [usage, name, macro] of translucentPrograms) {
+    pipeline.createObjectShader(name, usage).vertex("program/object/all_translucent.vsh").fragment("program/object/all_translucent.fsh").target(0, textures.radiance).define(macro, "1").compile();
+  }
+  pipeline.createObjectShader("shadow", Usage.SHADOW).vertex("program/object/shadow.vsh").fragment("program/object/shadow.fsh").compile();
+  if (settings.pointShadowEnabled) {
+    pipeline.createObjectShader("shadow_point", Usage.POINT).vertex("program/object/shadow_point.vsh").fragment("program/object/shadow_point.fsh").compile();
+  }
+}
+function createPreRenderCommands(commands) {
+  commands.createCompute("fill_global_data_buffer").location("program/pre_render/fill_global_data_buffer.csh").workGroups(1, 1, 1).ssbo(0, buffers.globalData).compile();
+  commands.barrier(SSBO_BIT | UBO_BIT);
+  commands.createComposite("render_sky_view").vertex("program/composite.vsh").fragment("program/pre_render/render_sky_view.fsh").target(0, textures.skyView).ubo(0, buffers.globalData).compile();
+  commands.createCompute("gen_sky_sh").location("program/pre_render/gen_sky_sh.csh").workGroups(1, 1, 1).ssbo(0, buffers.skySh).compile();
+  commands.barrier(SSBO_BIT | UBO_BIT);
+  commands.end();
+}
+function createPreTranslucentCommands(commands) {
+  commands.createComposite("deferred_shading").vertex("program/composite.vsh").fragment("program/pre_translucent/deferred_shading.fsh").target(0, textures.radiance).ubo(0, buffers.globalData).ubo(1, buffers.skySh).compile();
+  commands.end();
+}
+function createPostRenderCommands(commands) {
+  createExposureCommands(commands.subList("Exposure"));
+  commands.end();
+}
+function createExposureCommands(commands) {
+  commands.createCompute("clear_histogram").location("program/post_render/exposure/clear_histogram.csh").workGroups(1, 1, 1).compile();
+  commands.barrier(IMAGE_BIT | FETCH_BIT);
+  commands.createCompute("build_histogram").location("program/post_render/exposure/build_histogram.csh").workGroups(
+    Math.ceil(screenWidth / 32),
+    Math.ceil(screenHeight / 32),
+    1
+  ).compile();
+  commands.barrier(IMAGE_BIT | FETCH_BIT);
+  commands.createCompute("calculate_exposure").location("program/post_render/exposure/calculate_exposure.csh").workGroups(1, 1, 1).ssbo(0, buffers.exposure).compile();
+  commands.barrier(SSBO_BIT | UBO_BIT);
+  commands.end();
+}
+function createCombinationPass(pipeline) {
+  pipeline.createCombinationPass("program/combination.fsh").ubo(0, buffers.streamedSettings).ubo(1, buffers.exposure).compile();
+}
+function loadSettings() {
+  settings.pointShadowEnabled = getBoolSetting("POINT_SHADOW");
+  settings.manualExposureValue = getFloatSetting("EXPOSURE");
+}
+function createGlobalMacros() {
+  if (settings.pointShadowEnabled) {
+    defineGlobally("POINT_SHADOW", "1");
+  }
+  defineGlobally("HISTOGRAM_BINS", exposureHistogramBins);
 }
 export {
   beginFrame,

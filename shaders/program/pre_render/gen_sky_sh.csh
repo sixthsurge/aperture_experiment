@@ -8,6 +8,8 @@ layout (std140, binding = 0) buffer
 
 uniform sampler2D sky_view_tex;
 
+layout (r32ui) uniform writeonly uimage2D exposure_histogram_img;
+
 shared vec3 shared_memory[256][9];
 
 #include "/include/sky/projection.glsl"

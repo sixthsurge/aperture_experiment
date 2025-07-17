@@ -8,32 +8,35 @@ struct GbufferData {
     vec3 flat_normal;
     vec2 lightmap;
     uint material_mask;
+    vec3 detail_normal;
+    vec4 specular_map;
 };
 
-vec4 encode_gbuffer_data(GbufferData gbuffer_data) {
-    return vec4(
-        pack_unorm_2x8(gbuffer_data.base_color.rg),
-        pack_unorm_2x8(gbuffer_data.base_color.b, float(gbuffer_data.material_mask) * rcp(255.0)),
-        pack_unorm_2x8(encode_unit_vector(gbuffer_data.flat_normal)),
-        pack_unorm_2x8(gbuffer_data.lightmap)
+uvec4 encode_gbuffer_data(GbufferData data) {
+    return uvec4(
+        packUnorm4x8(vec4(data.base_color, float(data.material_mask) * rcp(255.0))),
+        packUnorm4x8(vec4(encode_unit_vector(data.flat_normal), data.lightmap)),
+        packUnorm2x16(encode_unit_vector(data.detail_normal)),
+        packUnorm4x8(data.specular_map)
     );
 }
 
-GbufferData decode_gbuffer_data(vec4 encoded_gbuffer_data) {
-    mat4x2 data = mat4x2(
-        unpack_unorm_2x8(encoded_gbuffer_data.x),
-        unpack_unorm_2x8(encoded_gbuffer_data.y),
-        unpack_unorm_2x8(encoded_gbuffer_data.z),
-        unpack_unorm_2x8(encoded_gbuffer_data.w)
+GbufferData decode_gbuffer_data(uvec4 encoded) {
+    mat3x4 unpacked = mat3x4(
+        unpackUnorm4x8(encoded.x),
+        unpackUnorm4x8(encoded.y),
+        unpackUnorm4x8(encoded.w)
     );
 
-    GbufferData gbuffer_data;
-    gbuffer_data.base_color    = vec3(data[0], data[1].x);
-    gbuffer_data.flat_normal   = decode_unit_vector(data[2]);
-    gbuffer_data.lightmap      = data[3];
-    gbuffer_data.material_mask = uint(data[1].y * 255.0 + 0.5);
+    GbufferData data;
+    data.base_color    = unpacked[0].xyz;
+    data.material_mask = uint(unpacked[0].w * 255.0 + 0.5);
+    data.flat_normal   = decode_unit_vector(unpacked[1].xy);
+    data.lightmap      = unpacked[1].zw;
+    data.detail_normal = decode_unit_vector(unpackUnorm2x16(encoded[2]));
+    data.specular_map  = unpacked[2];
 
-    return gbuffer_data;
+    return data;
 }
 
 #endif // INCLUDE_GBUFFER_ENCODING

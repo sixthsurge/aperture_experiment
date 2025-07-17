@@ -6,7 +6,7 @@ out VertexOutputs {
     vec3 normal;
     vec4 color;
 
-#if defined OBJECT_TERRAIN_SOLID || defined OBJECT_TERRAIN_CUTOUT
+#if defined OBJECT_TERRAIN_TRANSLUCENT
     flat uint block;
 #endif
 } outputs;
@@ -27,7 +27,7 @@ void iris_sendParameters(VertexData data) {
     outputs.normal   = normal_world;
     outputs.color    = data.color;
 
-#if defined OBJECT_TERRAIN_SOLID || defined OBJECT_TERRAIN_CUTOUT
+#if defined OBJECT_TERRAIN_TRANSLUCENT
     outputs.block    = data.blockId;
 #endif
 }

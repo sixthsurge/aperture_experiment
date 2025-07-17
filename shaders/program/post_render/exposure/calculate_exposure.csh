@@ -5,9 +5,7 @@ layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout (std140, binding = 0) buffer 
 #include "/include/buffer/exposure.glsl"
 
-layout (std140, binding = 0) uniform HistogramBuffer {
-    uint bin[HISTOGRAM_BINS];
-} histogram;
+uniform usampler2D exposure_histogram_tex;
 
 #include "/include/prelude.glsl"
 #include "/include/exposure.glsl"
@@ -21,7 +19,7 @@ void main() {
     uint best_bin = 0;
 
     for (uint i = 0; i < HISTOGRAM_BINS; ++i) {
-        uint count = histogram.bin[i];
+        uint count = texelFetch(exposure_histogram_tex, ivec2(i, 0), 0).x;
 
         cdf += count;
 

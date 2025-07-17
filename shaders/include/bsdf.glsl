@@ -127,7 +127,7 @@ vec3 specular_smith_ggx(
 	float d = distribution_ggx(NoH_squared, alpha_squared);
 	float v = v2_smith_ggx(max(NoL, 1e-2), max(NoV, 1e-2), alpha_squared);
 
-	return (NoL * d * v) * fresnel * albedo_tint;
+	return (d * v) * fresnel * albedo_tint;
 }
 
 // Modified by Jessie to correctly account for fresnel
