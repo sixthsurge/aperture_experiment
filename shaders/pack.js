@@ -82,12 +82,6 @@ function configureLightColors() {
 }
 
 // pack.ts
-var Settings = class {
-  constructor() {
-    __publicField(this, "pointShadowEnabled");
-    __publicField(this, "manualExposureValue");
-  }
-};
 var Textures = class {
   constructor() {
     __publicField(this, "radiance");
@@ -98,15 +92,24 @@ var Textures = class {
 };
 var Buffers = class {
   constructor() {
-    __publicField(this, "streamedSettings");
     __publicField(this, "globalData");
     __publicField(this, "skySh");
     __publicField(this, "exposure");
   }
 };
+var StreamingBuffers = class {
+  constructor() {
+    __publicField(this, "settings");
+  }
+};
+var Settings = class {
+  constructor() {
+    __publicField(this, "pointShadowEnabled");
+    __publicField(this, "manualExposureValue");
+  }
+};
+var streamingBuffers = new StreamingBuffers();
 var settings = new Settings();
-var textures = new Textures();
-var buffers = new Buffers();
 var streamedSettingsBufferSize = 4;
 var globalDataBufferSize = 64;
 var skyViewRes = [192, 108];
@@ -138,38 +141,42 @@ function configureRenderer(renderer) {
 }
 function configurePipeline(pipeline) {
   configureLightColors();
-  createTextures(pipeline);
-  createBuffers(pipeline);
+  let textures = createTextures(pipeline);
+  let buffers = createBuffers(pipeline);
   createGlobalMacros();
-  createObjectShaders(pipeline);
-  createPreRenderCommands(pipeline.forStage(Stage.PRE_RENDER));
-  createPreTranslucentCommands(pipeline.forStage(Stage.PRE_TRANSLUCENT));
-  createPostRenderCommands(pipeline.forStage(Stage.POST_RENDER));
-  createCombinationPass(pipeline);
-  onSettingsChanged();
+  createObjectShaders(pipeline, textures, buffers);
+  createPreRenderCommands(pipeline.forStage(Stage.PRE_RENDER), textures, buffers);
+  createPreTranslucentCommands(pipeline.forStage(Stage.PRE_TRANSLUCENT), textures, buffers);
+  createPostRenderCommands(pipeline.forStage(Stage.POST_RENDER), textures, buffers);
+  createCombinationPass(pipeline, textures, buffers);
+  uploadStreamedSettings();
 }
 function beginFrame() {
-  buffers.streamedSettings.uploadData();
+  streamingBuffers.settings.uploadData();
 }
 function onSettingsChanged() {
   loadSettings();
-  buffers.streamedSettings.setFloat(0, settings.manualExposureValue);
+  uploadStreamedSettings();
 }
 function createTextures(pipeline) {
+  pipeline.importRawTexture("atmosphere_scattering_lut", "data/atmosphere_scattering.dat").width(32).height(64).depth(32).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).load();
+  pipeline.importRawTexture("tony_mcmapface_lut", "data/tony_mcmapface_lut_f16.dat").width(48).height(48).depth(48).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).load();
+  let textures = new Textures();
   textures.radiance = pipeline.createTexture("radiance_tex").format(Format.RGBA16F).width(screenWidth).height(screenHeight).build();
   textures.gbufferData = pipeline.createTexture("gbuffer_data_tex").format(Format.RGBA32UI).width(screenWidth).height(screenHeight).build();
   textures.skyView = pipeline.createTexture("sky_view_tex").format(Format.RGB16F).width(skyViewRes[0]).height(skyViewRes[1]).build();
   textures.exposureHistogram = pipeline.createImageTexture("exposure_histogram_tex", "exposure_histogram_img").format(Format.R32UI).width(exposureHistogramBins).height(1).clear(true).build();
-  pipeline.importRawTexture("atmosphere_scattering_lut", "data/atmosphere_scattering.dat").width(32).height(64).depth(32).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).load();
-  pipeline.importRawTexture("tony_mcmapface_lut", "data/tony_mcmapface_lut_f16.dat").width(48).height(48).depth(48).format(Format.RGB16F).type(PixelType.HALF_FLOAT).blur(true).clamp(true).load();
+  return textures;
 }
 function createBuffers(pipeline) {
-  buffers.streamedSettings = pipeline.createStreamingBuffer(streamedSettingsBufferSize);
+  streamingBuffers.settings = pipeline.createStreamingBuffer(streamedSettingsBufferSize);
+  let buffers = new Buffers();
   buffers.globalData = pipeline.createBuffer(globalDataBufferSize, false);
   buffers.skySh = pipeline.createBuffer(4 * 4 * 9, false);
   buffers.exposure = pipeline.createBuffer(4 * 2, false);
+  return buffers;
 }
-function createObjectShaders(pipeline) {
+function createObjectShaders(pipeline, textures, buffers) {
   const solidPrograms = [
     [Usage.TERRAIN_SOLID, "terrain_solid", "OBJECT_TERRAIN_SOLID"],
     [Usage.TERRAIN_CUTOUT, "terrain_cutout", "OBJECT_TERRAIN_CUTOUT"],
@@ -202,7 +209,7 @@ function createObjectShaders(pipeline) {
     pipeline.createObjectShader("shadow_point", Usage.POINT).vertex("program/object/shadow_point.vsh").fragment("program/object/shadow_point.fsh").compile();
   }
 }
-function createPreRenderCommands(commands) {
+function createPreRenderCommands(commands, textures, buffers) {
   commands.createCompute("fill_global_data_buffer").location("program/pre_render/fill_global_data_buffer.csh").workGroups(1, 1, 1).ssbo(0, buffers.globalData).compile();
   commands.barrier(SSBO_BIT | UBO_BIT);
   commands.createComposite("render_sky_view").vertex("program/composite.vsh").fragment("program/pre_render/render_sky_view.fsh").target(0, textures.skyView).ubo(0, buffers.globalData).compile();
@@ -210,15 +217,15 @@ function createPreRenderCommands(commands) {
   commands.barrier(SSBO_BIT | UBO_BIT);
   commands.end();
 }
-function createPreTranslucentCommands(commands) {
+function createPreTranslucentCommands(commands, textures, buffers) {
   commands.createComposite("deferred_shading").vertex("program/composite.vsh").fragment("program/pre_translucent/deferred_shading.fsh").target(0, textures.radiance).ubo(0, buffers.globalData).ubo(1, buffers.skySh).compile();
   commands.end();
 }
-function createPostRenderCommands(commands) {
-  createExposureCommands(commands.subList("Exposure"));
+function createPostRenderCommands(commands, textures, buffers) {
+  createExposureCommands(commands.subList("Exposure"), textures, buffers);
   commands.end();
 }
-function createExposureCommands(commands) {
+function createExposureCommands(commands, textures, buffers) {
   commands.createCompute("clear_histogram").location("program/post_render/exposure/clear_histogram.csh").workGroups(1, 1, 1).compile();
   commands.barrier(IMAGE_BIT | FETCH_BIT);
   commands.createCompute("build_histogram").location("program/post_render/exposure/build_histogram.csh").workGroups(
@@ -231,12 +238,15 @@ function createExposureCommands(commands) {
   commands.barrier(SSBO_BIT | UBO_BIT);
   commands.end();
 }
-function createCombinationPass(pipeline) {
-  pipeline.createCombinationPass("program/combination.fsh").ubo(0, buffers.streamedSettings).ubo(1, buffers.exposure).compile();
+function createCombinationPass(pipeline, textures, buffers) {
+  pipeline.createCombinationPass("program/combination.fsh").ubo(0, streamingBuffers.settings).ubo(1, buffers.exposure).compile();
 }
 function loadSettings() {
   settings.pointShadowEnabled = getBoolSetting("POINT_SHADOW");
   settings.manualExposureValue = getFloatSetting("EXPOSURE");
+}
+function uploadStreamedSettings() {
+  streamingBuffers.settings.setFloat(0, settings.manualExposureValue);
 }
 function createGlobalMacros() {
   if (settings.pointShadowEnabled) {

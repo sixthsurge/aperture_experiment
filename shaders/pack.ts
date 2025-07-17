@@ -1,11 +1,6 @@
 import type {} from './iris'
 import {configureLightColors} from './script/lightColorsNull.ts'
 
-class Settings {
-    pointShadowEnabled: boolean;
-    manualExposureValue: number;
-}
-
 class Textures {
     radiance: BuiltTexture;
     gbufferData: BuiltTexture;
@@ -14,15 +9,22 @@ class Textures {
 }
 
 class Buffers {
-    streamedSettings: BuiltStreamingBuffer;
     globalData: BuiltBuffer;
     skySh: BuiltBuffer;
     exposure: BuiltBuffer;
 }
 
+class StreamingBuffers {
+    settings: BuiltStreamingBuffer;
+}
+
+class Settings {
+    pointShadowEnabled: boolean;
+    manualExposureValue: number;
+}
+
+let streamingBuffers = new StreamingBuffers();
 let settings = new Settings();
-let textures = new Textures();
-let buffers = new Buffers();
 
 const streamedSettingsBufferSize = 4;
 const globalDataBufferSize = 64; 
@@ -63,35 +65,57 @@ export function configureRenderer(renderer: RendererConfig) {
 export function configurePipeline(pipeline: PipelineConfig) {
     configureLightColors();
 
-    createTextures(pipeline);
+    let textures = createTextures(pipeline);
 
-    createBuffers(pipeline);
+    let buffers = createBuffers(pipeline);
 
     createGlobalMacros();
 
-    createObjectShaders(pipeline);
+    createObjectShaders(pipeline, textures, buffers);
 
-    createPreRenderCommands(pipeline.forStage(Stage.PRE_RENDER));
+    createPreRenderCommands(pipeline.forStage(Stage.PRE_RENDER), textures, buffers);
 
-    createPreTranslucentCommands(pipeline.forStage(Stage.PRE_TRANSLUCENT));
+    createPreTranslucentCommands(pipeline.forStage(Stage.PRE_TRANSLUCENT), textures, buffers);
 
-    createPostRenderCommands(pipeline.forStage(Stage.POST_RENDER));
+    createPostRenderCommands(pipeline.forStage(Stage.POST_RENDER), textures, buffers);
 
-    createCombinationPass(pipeline);
+    createCombinationPass(pipeline, textures, buffers);
 
-    onSettingsChanged();
+    uploadStreamedSettings();
 }
 
 export function beginFrame() {
-    buffers.streamedSettings.uploadData();
+    streamingBuffers.settings.uploadData();
 }
 
 export function onSettingsChanged() {
     loadSettings();
-    buffers.streamedSettings.setFloat(0, settings.manualExposureValue);
+    uploadStreamedSettings();
 }
 
-function createTextures(pipeline: PipelineConfig) {
+function createTextures(pipeline: PipelineConfig): Textures {
+    pipeline.importRawTexture("atmosphere_scattering_lut", "data/atmosphere_scattering.dat")
+        .width(32)
+        .height(64)
+        .depth(32)
+        .format(Format.RGB16F)
+        .type(PixelType.HALF_FLOAT)
+        .blur(true)
+        .clamp(true)
+        .load();
+
+    pipeline.importRawTexture("tony_mcmapface_lut", "data/tony_mcmapface_lut_f16.dat")
+        .width(48)
+        .height(48)
+        .depth(48)
+        .format(Format.RGB16F)
+        .type(PixelType.HALF_FLOAT)
+        .blur(true)
+        .clamp(true)
+        .load();
+
+    let textures = new Textures();
+
     textures.radiance = pipeline.createTexture("radiance_tex")
         .format(Format.RGBA16F)
         .width(screenWidth)
@@ -118,38 +142,24 @@ function createTextures(pipeline: PipelineConfig) {
             .clear(true)
             .build();
 
-    pipeline.importRawTexture("atmosphere_scattering_lut", "data/atmosphere_scattering.dat")
-        .width(32)
-        .height(64)
-        .depth(32)
-        .format(Format.RGB16F)
-        .type(PixelType.HALF_FLOAT)
-        .blur(true)
-        .clamp(true)
-        .load();
-
-    pipeline.importRawTexture("tony_mcmapface_lut", "data/tony_mcmapface_lut_f16.dat")
-        .width(48)
-        .height(48)
-        .depth(48)
-        .format(Format.RGB16F)
-        .type(PixelType.HALF_FLOAT)
-        .blur(true)
-        .clamp(true)
-        .load();
+    return textures;
 }
 
-function createBuffers(pipeline: PipelineConfig) {
-    buffers.streamedSettings = pipeline.createStreamingBuffer(streamedSettingsBufferSize);
+function createBuffers(pipeline: PipelineConfig): Buffers {
+    streamingBuffers.settings = pipeline.createStreamingBuffer(streamedSettingsBufferSize);
+
+    let buffers = new Buffers();
 
     buffers.globalData = pipeline.createBuffer(globalDataBufferSize, false);
 
     buffers.skySh = pipeline.createBuffer(4 * 4 * 9, false);
 
     buffers.exposure = pipeline.createBuffer(4 * 2, false);
+
+    return buffers;
 }
 
-function createObjectShaders(pipeline: PipelineConfig) {
+function createObjectShaders(pipeline: PipelineConfig, textures: Textures, buffers: Buffers) {
     // Solid 
 
     const solidPrograms: [ProgramUsage, string, string][] = [
@@ -210,7 +220,7 @@ function createObjectShaders(pipeline: PipelineConfig) {
     }
 }
 
-function createPreRenderCommands(commands: CommandList) {
+function createPreRenderCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
     commands.createCompute("fill_global_data_buffer")
         .location("program/pre_render/fill_global_data_buffer.csh")
         .workGroups(1, 1, 1)
@@ -237,7 +247,7 @@ function createPreRenderCommands(commands: CommandList) {
     commands.end();
 }
 
-function createPreTranslucentCommands(commands: CommandList) {
+function createPreTranslucentCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
     commands.createComposite("deferred_shading")
         .vertex("program/composite.vsh")
         .fragment("program/pre_translucent/deferred_shading.fsh")
@@ -249,13 +259,13 @@ function createPreTranslucentCommands(commands: CommandList) {
     commands.end();
 }
 
-function createPostRenderCommands(commands: CommandList) {
-    createExposureCommands(commands.subList("Exposure"));
+function createPostRenderCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
+    createExposureCommands(commands.subList("Exposure"), textures, buffers);
 
     commands.end();
 }
 
-function createExposureCommands(commands: CommandList) {
+function createExposureCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
     commands.createCompute("clear_histogram")
         .location("program/post_render/exposure/clear_histogram.csh")
         .workGroups(1, 1, 1)
@@ -285,9 +295,9 @@ function createExposureCommands(commands: CommandList) {
     commands.end();
 }
 
-function createCombinationPass(pipeline: PipelineConfig) {
+function createCombinationPass(pipeline: PipelineConfig, textures: Textures, buffers: Buffers) {
     pipeline.createCombinationPass("program/combination.fsh")
-        .ubo(0, buffers.streamedSettings)
+        .ubo(0, streamingBuffers.settings)
         .ubo(1, buffers.exposure)
         .compile()
 }
@@ -295,6 +305,10 @@ function createCombinationPass(pipeline: PipelineConfig) {
 function loadSettings() {
     settings.pointShadowEnabled = getBoolSetting("POINT_SHADOW");
     settings.manualExposureValue = getFloatSetting("EXPOSURE");
+}
+
+function uploadStreamedSettings() {
+    streamingBuffers.settings.setFloat(0, settings.manualExposureValue);
 }
 
 function createGlobalMacros() {
