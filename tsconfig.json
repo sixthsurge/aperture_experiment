@@ -1,7 +1,3 @@
 {
-  "files": [
-    "shaders/pack.ts",
-    "shaders/iris.d.ts",
-    "shaders/script/lightColorsNull.ts"
-  ]
+    "files": ["shaders/pack.ts", "shaders/iris.d.ts", "shaders/script/lightColorsNull.ts"]
 }

@@ -5,7 +5,7 @@
 
 layout (location = 0) out vec3 radiance_out;
 
-noperspective in vec2 uv;
+in vec2 uv;
 
 layout (std140, binding = 0) uniform GlobalBuffer {
     GlobalData global;
@@ -56,13 +56,13 @@ void main() {
     vec3 pos_scene  = view_to_scene_space(pos_view);
     vec3 pos_world  = pos_scene + ap.camera.pos;
 
-    vec3 dir_w = normalize(pos_scene - ap.camera.view[3].xyz);
+    vec3 dir_world = normalize(pos_scene - ap.camera.view[3].xyz);
 
     if (depth == 1.0) {
         // Sky
         radiance_out = atmosphere_scattering(
             atmosphere_scattering_lut,
-            dir_w,
+            dir_world,
             sun_irradiance,
             global.sun_dir,
             moon_irradiance,
@@ -87,8 +87,8 @@ void main() {
 		// Directional light
 
 		float NoL = dot(normal, global.light_dir);
-		float NoV = clamp01(dot(normal, -dir_w));
-		float LoV = dot(global.light_dir, -dir_w);
+		float NoV = clamp01(dot(normal, -dir_world));
+		float LoV = dot(global.light_dir, -dir_world);
 		float halfway_norm = inversesqrt(2.0 * LoV + 2.0);
 		float NoH = (NoL + NoV) * halfway_norm;
 		float LoH = LoV * halfway_norm + halfway_norm;
@@ -104,6 +104,7 @@ void main() {
         ) * material.albedo;
         vec3 specular = specular_smith_ggx(
             material,
+            sun_angular_radius,
             NoL,
             NoV,
             NoH,
@@ -118,11 +119,11 @@ void main() {
 
         vec3 ambient_irradiance = sh_evaluate_irradiance(
             sky_sh.coeff, 
-            normal, 
+            normal,
             1.0
         ) * sqr(gbuffer_data.lightmap.y);
 
-        radiance_out += material.albedo * rcp(pi) * ambient_irradiance;
+        radiance_out += material.albedo * ambient_irradiance * rcp(pi);
 
         // Emission 
 
@@ -132,7 +133,7 @@ void main() {
         // Point shadows
 
 #ifdef POINT_SHADOW
-        vec3 pos_biased = pos_scene + 0.15 * normal;
+        vec3 pos_biased = pos_scene + 0.15 * gbuffer_data.flat_normal;
         for (uint i = 0; i <= ap.point.total; ++i) {
             ap_PointLight light = iris_getPointLight(i);
             if (light.block == -1) continue;
@@ -165,7 +166,35 @@ void main() {
 
             vec3 irradiance = 0.05 * light_color * (light_intensity * shadow * attenuation * edge_fade * max0(dot(normal, light_dir)));
 
-            radiance_out += material.albedo * irradiance * rcp(pi);
+            float NoL = dot(normal, light_dir);
+            float NoV = clamp01(dot(normal, -dir_world));
+            float LoV = dot(light_dir, -dir_world);
+            float halfway_norm = inversesqrt(2.0 * LoV + 2.0);
+            float NoH = (NoL + NoV) * halfway_norm;
+            float LoH = LoV * halfway_norm + halfway_norm;
+
+            float light_angular_radius = clamp(0.5 / max(light_distance, eps), 0.0, pi);
+
+            vec3 diffuse = diffuse_hammon(
+                material.albedo,
+                material.roughness,
+                material.f0.x,
+                NoL,
+                NoV,
+                NoH,
+                LoV
+            ) * material.albedo;
+            vec3 specular = specular_smith_ggx(
+                material,
+                light_angular_radius,
+                NoL,
+                NoV,
+                NoH,
+                LoV,
+                LoH
+            );
+
+            radiance_out += (diffuse + specular) * irradiance * shadow * max0(NoL);
         }
 #endif
     }

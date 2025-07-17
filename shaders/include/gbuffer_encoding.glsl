@@ -1,4 +1,4 @@
-#if !defined INCLUDE_GBUFFER_ENCODING 
+#if ! defined INCLUDE_GBUFFER_ENCODING
 #define INCLUDE_GBUFFER_ENCODING
 
 #include "/include/utility/encoding.glsl"
@@ -29,12 +29,12 @@ GbufferData decode_gbuffer_data(uvec4 encoded) {
     );
 
     GbufferData data;
-    data.base_color    = unpacked[0].xyz;
+    data.base_color = unpacked[0].xyz;
     data.material_mask = uint(unpacked[0].w * 255.0 + 0.5);
-    data.flat_normal   = decode_unit_vector(unpacked[1].xy);
-    data.lightmap      = unpacked[1].zw;
+    data.flat_normal = decode_unit_vector(unpacked[1].xy);
+    data.lightmap = unpacked[1].zw;
     data.detail_normal = decode_unit_vector(unpackUnorm2x16(encoded[2]));
-    data.specular_map  = unpacked[2];
+    data.specular_map = unpacked[2];
 
     return data;
 }

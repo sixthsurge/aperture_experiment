@@ -6,6 +6,7 @@ in VertexOutputs {
     vec2 atlas_uv;
     vec2 lightmap;
     vec4 color;
+    vec4 overlay_color;
     flat mat3 tbn;
 
 #if defined OBJECT_TERRAIN_SOLID || defined OBJECT_TERRAIN_CUTOUT
@@ -43,7 +44,8 @@ void iris_emitFragment() {
     new_lightmap = linear_step(vec2(1.0 / 32.0), vec2(31.0 / 32.0), new_lightmap);
 
     vec4 base_color = iris_sampleBaseTex(new_atlas_uv) * new_color;
-
+    base_color.rgb = mix(inputs.overlay_color.rgb, base_color.rgb, inputs.overlay_color.a);
+    
     vec3 detail_normal = inputs.tbn[2];
     vec4 specular_map = vec4(0.0);
 

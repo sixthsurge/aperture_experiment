@@ -1,4 +1,6 @@
 #version 430
+#include "/include/prelude.glsl"
+#include "/include/buffer/global.glsl"
 
 layout (location = 0) out vec4 color_out;
 
@@ -13,9 +15,13 @@ in VertexOutputs {
 #endif
 } inputs;
 
-#include "/include/prelude.glsl"
-#include "/include/utility/dithering.glsl"
+layout (std140, binding = 0) uniform GlobalBuffer {
+    GlobalData global;
+};
+
 #include "/include/gbuffer_encoding.glsl"
+#include "/include/utility/color.glsl"
+#include "/include/utility/dithering.glsl"
 
 void iris_emitFragment() {
     vec2 new_atlas_uv = inputs.atlas_uv;
@@ -28,5 +34,6 @@ void iris_emitFragment() {
     // Alpha test
     if (iris_discardFragment(base_color)) discard;
 
-    color_out = vec4(vec3(0.0), base_color.a);
+    color_out.rgb = (srgb_eotf_inv(base_color.rgb) * rec709_to_rec2020) * global.light_irradiance;
+    color_out.a = base_color.a;
 }

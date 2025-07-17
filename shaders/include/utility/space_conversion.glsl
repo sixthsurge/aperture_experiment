@@ -1,27 +1,30 @@
-#if !defined INCLUDE_UTILITY_SPACE_CONVERSION
+#if ! defined INCLUDE_UTILITY_SPACE_CONVERSION
 #define INCLUDE_UTILITY_SPACE_CONVERSION
 
 float linearize_depth(float depth) {
-	return (ap.camera.near * ap.camera.far) / (depth * (ap.camera.near - ap.camera.far) + ap.camera.far);
+    return ap.camera.near *
+    ap.camera.far /
+    (depth * (ap.camera.near - ap.camera.far) + ap.camera.far);
 }
 float linearize_depth_inverse(float near, float far, float linear_z) {
-	return (ap.camera.far + ap.camera.near) / (ap.camera.far - ap.camera.near) + (2.0 * ap.camera.far * ap.camera.near) / (linear_z * (ap.camera.far - ap.camera.near));
+    return (ap.camera.far + ap.camera.near) / (ap.camera.far - ap.camera.near) +
+    2.0 * ap.camera.far * ap.camera.near / (linear_z * (ap.camera.far - ap.camera.near));
 }
 
 vec3 screen_to_view_space(vec3 position_screen) {
-	vec3 position_ndc = position_screen * 2.0 - 1.0;
-	return project_and_divide(ap.camera.projectionInv, position_ndc);
+    vec3 position_ndc = position_screen * 2.0 - 1.0;
+    return project_and_divide(ap.camera.projectionInv, position_ndc);
 }
 vec3 view_to_screen_space(vec3 position_view) {
-	vec3 position_ndc = project_and_divide(ap.camera.projection, position_view);
-	return position_ndc * 0.5 + 0.5;
+    vec3 position_ndc = project_and_divide(ap.camera.projection, position_view);
+    return position_ndc * 0.5 + 0.5;
 }
 
 vec3 view_to_scene_space(vec3 position_view) {
-	return transform(ap.camera.viewInv, position_view);
+    return transform(ap.camera.viewInv, position_view);
 }
 vec3 scene_to_view_space(vec3 position_scene) {
-	return transform(ap.camera.view, position_scene);
+    return transform(ap.camera.view, position_scene);
 }
 
 /*

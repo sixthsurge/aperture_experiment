@@ -19,5 +19,5 @@ void iris_emitFragment() {
 
     // from null
     float near = inputs.is_full_block ? 0.5 : 0.49999;
-    //if (clamp(inputs.pos_model, -near, near) == inputs.pos_model) discard;
+    //if (all(greaterThan(inputs.pos_model, vec3(-near))) && all(lessThan(inputs.pos_model, vec3(near)))) discard;
 }

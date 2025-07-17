@@ -1,6 +1,6 @@
-#version 430 
+#version 430
 
-noperspective out vec2 uv;
+out vec2 uv;
 
 void main() {
     vec2 position = vec2(gl_VertexID % 2, gl_VertexID / 2) * 4.0 - 1.0;

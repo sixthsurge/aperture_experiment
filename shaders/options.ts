@@ -1,4 +1,4 @@
-import type {} from './iris'
+import type {} from "./iris";
 
 export function setupOptions() {
     return new Page("main")
@@ -6,9 +6,7 @@ export function setupOptions() {
         .add(asBool("specularMapEnabled", false, true))
         .add(
             new Page("pointShadow")
-                .add(
-                    asBool("pointShadowEnabled", false, true)
-                )
+                .add(asBool("pointShadowEnabled", false, true))
                 .add(
                     asInt("pointShadowMaxCount", ...range(0, 256, 1))
                         .needsReload(true)
@@ -24,6 +22,7 @@ export function setupOptions() {
         .add(
             new Page("bloom")
                 .add(asBool("bloomEnabled", true, false))
+                .add(asFloat("bloomIntensity", ...range(0.01, 1.0, 0.01)).needsReload(false).build(0.05))
                 .add(
                     asInt("bloomTileCount", ...range(1, 12, 1))
                         .needsReload(true)
@@ -31,24 +30,23 @@ export function setupOptions() {
                 )
                 .build()
         )
-        .add(new Page("exposure")
-            .add(
-                asBool("autoExposureEnabled", true, false)
-            )
-            .add(
-                asFloat("manualExposureValue", ...range(0.0, 1024.0, 1.0))
-                    .needsReload(false)
-                    .build(8.0)
-            )
-            .build()
+        .add(
+            new Page("exposure")
+                .add(asBool("autoExposureEnabled", true, false))
+                .add(
+                    asFloat("manualExposureValue", ...range(0.0, 1024.0, 1.0))
+                        .needsReload(false)
+                        .build(8.0)
+                )
+                .build()
         )
         .build();
 }
 
 function range(min: number, max: number, step: number): number[] {
-    let values: number[] = []
+    let values: number[] = [];
 
-    for (let x = min; x <= max; x += step) values.push(x); 
+    for (let x = min; x <= max; x += step) values.push(x);
 
     return values;
 }

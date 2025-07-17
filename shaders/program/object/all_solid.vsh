@@ -4,6 +4,7 @@ out VertexOutputs {
     vec2 atlas_uv;
     vec2 lightmap;
     vec4 color;
+    vec4 overlay_color;
     flat mat3 tbn;
 
 #if defined OBJECT_TERRAIN_SOLID || defined OBJECT_TERRAIN_CUTOUT
@@ -19,9 +20,10 @@ void iris_emitVertex(inout VertexData data) {
 }
 
 void iris_sendParameters(VertexData data) {
-    outputs.atlas_uv = data.uv;
-    outputs.lightmap = data.light;
-    outputs.color    = data.color;
+    outputs.atlas_uv      = data.uv;
+    outputs.lightmap      = data.light;
+    outputs.color         = data.color;
+    outputs.overlay_color = data.overlayColor;
 
     vec3 tangent_view = normalize(mat3(iris_modelViewMatrix) * data.tangent.xyz);
     vec3 normal_view = normalize(mat3(iris_modelViewMatrix) * data.normal);

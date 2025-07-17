@@ -18,57 +18,57 @@ declare var screenHeight: number;
  * The world settings. These control fixed rendering parameters of the pipeline.
  */
 declare class RendererConfig {
-  sunPathRotation: number;
-  ambientOcclusionLevel: number;
-  mergedHandDepth: boolean;
-  disableShade: boolean;
-  dimension : NamespacedId;
+    sunPathRotation: number;
+    ambientOcclusionLevel: number;
+    mergedHandDepth: boolean;
+    disableShade: boolean;
+    dimension: NamespacedId;
 
-  shadow : ShadowSettings;
-  pointLight : PointShadowSettings;
-  render : RenderSettings;
+    shadow: ShadowSettings;
+    pointLight: PointShadowSettings;
+    render: RenderSettings;
 }
 
 declare class PointShadowSettings {
-    resolution : number;
+    resolution: number;
 
-    maxCount : number;
+    maxCount: number;
 
-    maxUpdates : number;
+    maxUpdates: number;
 
-    realTimeCount : number;
+    realTimeCount: number;
 
-    cacheRealTimeTerrain : boolean;
+    cacheRealTimeTerrain: boolean;
 
-    updateThreshold : number;
+    updateThreshold: number;
 
-    nearPlane : number;
+    nearPlane: number;
 
-    farPlane : number;
+    farPlane: number;
 }
 
 declare class ShadowSettings {
-    resolution : number;
-    cascades : number;
-    entityCascadeCount : number;
-    distance : number;
-    near : number;
-    far : number;
+    resolution: number;
+    cascades: number;
+    entityCascadeCount: number;
+    distance: number;
+    near: number;
+    far: number;
 
-    safeZone : number[];
+    safeZone: number[];
 
-    enabled : boolean;
+    enabled: boolean;
 }
 
 declare class RenderSettings {
-    sun : boolean;
-    moon : boolean;
-    stars : boolean;
-    horizon : boolean;
-    clouds : boolean;
-    vignette : boolean;
-    waterOverlay : boolean;
-    entityShadow : boolean;
+    sun: boolean;
+    moon: boolean;
+    stars: boolean;
+    horizon: boolean;
+    clouds: boolean;
+    vignette: boolean;
+    waterOverlay: boolean;
+    entityShadow: boolean;
 }
 
 // Formats/stages/usages
@@ -83,15 +83,15 @@ declare class NamespacedId {
      * Creates a new NamespacedId from a combined string. If the string is in the format `namespace:path`, the NamespacedId will be created accordingly, otherwise it will use the `minecraft` namespace.
      * @param combined The combined `namespace:path`, or `path` if `minecraft` is the desired namespace
      */
-    constructor(combined : string);
+    constructor(combined: string);
 
     /**
      * Creates a new NamespacedId from a separate namespace and path.
      */
-    constructor(namespace : string, path : string);
+    constructor(namespace: string, path: string);
 
-    getNamespace() : string;
-    getPath() : string;
+    getNamespace(): string;
+    getPath(): string;
 }
 
 /**
@@ -99,32 +99,36 @@ declare class NamespacedId {
  */
 declare namespace Stage {
     /**
-    * Runs before any rendering takes place.
-    */
-  let PRE_RENDER: ProgramStage;
+     * Runs before any rendering takes place.
+     */
+    let PRE_RENDER: ProgramStage;
 
     /**
-    * Runs after the shadow pass is drawn.
-    */
-  let POST_SHADOW: ProgramStage;
+     * Runs after the shadow pass is drawn.
+     */
+    let POST_SHADOW: ProgramStage;
 
     /**
      * Runs after all main rendering takes place.
      */
-  let POST_RENDER: ProgramStage;
+    let POST_RENDER: ProgramStage;
 
     /**
      * Runs after opaque terrain is rendered, but before translucent terrain and entities.
      */
-  let PRE_TRANSLUCENT: ProgramStage;
+    let PRE_TRANSLUCENT: ProgramStage;
 
     /**
      * Runs only once; when the shader is set up (or the screen is resized).
      */
-  let SCREEN_SETUP: ProgramStage;
+    let SCREEN_SETUP: ProgramStage;
 }
 
-declare function writeMatrixToAddress(buffer : BuiltStreamingBuffer, offset : number, matrix : Matrix4f);
+declare function writeMatrixToAddress(
+    buffer: BuiltStreamingBuffer,
+    offset: number,
+    matrix: Matrix4f
+);
 
 /**
  * @see Usage
@@ -143,36 +147,35 @@ declare function getIntSetting(name: string): number;
 declare function getFloatSetting(name: string): number;
 
 declare class IntSetting {
-  needsReload(reload: boolean): IntSetting;
-  build(defaultValue: number): BuiltSetting;
+    needsReload(reload: boolean): IntSetting;
+    build(defaultValue: number): BuiltSetting;
 }
 declare class FloatSetting {
-  needsReload(reload: boolean): FloatSetting;
-  build(defaultValue: number): BuiltSetting;
+    needsReload(reload: boolean): FloatSetting;
+    build(defaultValue: number): BuiltSetting;
 }
 declare class StringSetting {
-  needsReload(reload: boolean): StringSetting;
-  build(defaultValue: string): BuiltSetting;
+    needsReload(reload: boolean): StringSetting;
+    build(defaultValue: string): BuiltSetting;
 }
 declare class BuiltSetting {}
 
 declare class Page {
-  constructor(name: string);
+    constructor(name: string);
 
-  add(...settings): Page;
-  build(): BuiltPage;
+    add(...settings): Page;
+    build(): BuiltPage;
 }
 declare class BuiltPage {}
 
 declare function asInt(name: string, ...values: number[]): IntSetting;
 declare function asFloat(name: string, ...values: number[]): FloatSetting;
-declare function putTextLabel(id : string, text : string) : BuiltSetting
-declare function putTranslationLabel(id : string, text : string) : BuiltSetting
+declare function putTextLabel(id: string, text: string): BuiltSetting;
+declare function putTranslationLabel(id: string, text: string): BuiltSetting;
 declare function asString(name: string, ...values: string[]): StringSetting;
 declare function asBool(name: string, defaultValue: boolean, reload: boolean): BuiltSetting;
 
 declare var EMPTY: BuiltPage;
-
 
 /**
  * Sets the light color for the provided block.
@@ -184,11 +187,11 @@ declare var EMPTY: BuiltPage;
  * @alpha
  */
 declare function setLightColor(
-  name: NamespacedId,
-  r: number,
-  g: number,
-  b: number,
-  a: number,
+    name: NamespacedId,
+    r: number,
+    g: number,
+    b: number,
+    a: number
 ): void;
 
 /**
@@ -200,8 +203,6 @@ declare function setLightColor(
 declare function setLightColor(name: NamespacedId, hex: number): void;
 
 // Uniforms
-
-
 
 /**
  * Registers a define for all future shaders. Behavior for shaders already made is undefined.
@@ -256,28 +257,28 @@ declare class Cubemap {
 }
 
 declare class PipelineConfig {
-    forStage(stage : ProgramStage) : CommandList;
+    forStage(stage: ProgramStage): CommandList;
 
-    createObjectShader(name : string, usage : ProgramUsage) : ObjectShader;
+    createObjectShader(name: string, usage: ProgramUsage): ObjectShader;
 
-    getRendererConfig() : RendererConfig;
+    getRendererConfig(): RendererConfig;
 
-    addTag(index : number, tag : NamespacedId) : void;
+    addTag(index: number, tag: NamespacedId): void;
 
-    createTag(tag : NamespacedId, ...blocks : NamespacedId[]) : NamespacedId;
+    createTag(tag: NamespacedId, ...blocks: NamespacedId[]): NamespacedId;
 
-    createCombinationPass(location: string) : CombinationPass;
+    createCombinationPass(location: string): CombinationPass;
 
     // Textures
 
-    createTexture(name : string) : Texture;
-    createImageTexture(sampler : string, image : string) : Texture;
+    createTexture(name: string): Texture;
+    createImageTexture(sampler: string, image: string): Texture;
 
-    createArrayTexture(name : string) : ArrayTexture;
-    createImageArrayTexture(sampler : string, image : string) : ArrayTexture;
+    createArrayTexture(name: string): ArrayTexture;
+    createImageArrayTexture(sampler: string, image: string): ArrayTexture;
 
-    createCubemapTexture(name : string) : Cubemap;
-    createImageCubemapTexture(sampler : string, image : string) : Cubemap;
+    createCubemapTexture(name: string): Cubemap;
+    createImageCubemapTexture(sampler: string, image: string): Cubemap;
 
     /**
      * Creates a reference to a texture that can change.
@@ -288,48 +289,59 @@ declare class PipelineConfig {
      * @param depth The depth (or 1 if it's a 1D/2D texture, or 6 for a cubemap)
      * @param format The internal format
      */
-    createTextureReference(sampler : string, image : string | null, width : number, height : number, depth : number, format : InternalTextureFormat) : TextureReference;
+    createTextureReference(
+        sampler: string,
+        image: string | null,
+        width: number,
+        height: number,
+        depth: number,
+        format: InternalTextureFormat
+    ): TextureReference;
 
-    importPNGTexture(name : string, location : string, linearFilter : boolean, clamp : boolean) : PNGTexture;
+    importPNGTexture(
+        name: string,
+        location: string,
+        linearFilter: boolean,
+        clamp: boolean
+    ): PNGTexture;
 
-    importRawTexture(name : string, location : string) : RawTexture;
+    importRawTexture(name: string, location: string): RawTexture;
 
-    createBuffer(size : number, clear : boolean) : BuiltBuffer;
-    createStreamingBuffer(size : number) : BuiltStreamingBuffer;
+    createBuffer(size: number, clear: boolean): BuiltBuffer;
+    createStreamingBuffer(size: number): BuiltStreamingBuffer;
 }
 
 declare class StateReference {
     constructor();
 
-    enable() : void;
+    enable(): void;
 
-    disable() : void;
+    disable(): void;
 
-    setEnabled(enabled : boolean) : void;
+    setEnabled(enabled: boolean): void;
 
-    isEnabled() : boolean;
+    isEnabled(): boolean;
 }
 
 declare class CommandList {
-    pass(cmd : Command) : CommandList;
+    pass(cmd: Command): CommandList;
 
-    createComposite(name : string) : Composite;
+    createComposite(name: string): Composite;
 
-    createCompute(name : string) : Compute;
+    createCompute(name: string): Compute;
 
-    barrier(barrier : number, state? : StateReference) : CommandList;
+    barrier(barrier: number, state?: StateReference): CommandList;
 
-    generateMips(...tex : BuiltTexture[]) : CommandList;
+    generateMips(...tex: BuiltTexture[]): CommandList;
 
-    copy(src : BuiltTexture, dst : BuiltTexture, width : number, height : number) : CommandList;
+    copy(src: BuiltTexture, dst: BuiltTexture, width: number, height: number): CommandList;
 
-    subList(name : string) : CommandList;
+    subList(name: string): CommandList;
 
-    end() : BuiltCommandList;
+    end(): BuiltCommandList;
 }
 
 declare interface BuiltCommandList {}
-
 
 interface Shader<T, X> {
     ssbo(index: number, buf: BuiltBuffer | undefined): T;
@@ -344,69 +356,69 @@ interface PostShader<T> extends Shader<T, PostPass> {
 }
 
 declare class ObjectShader implements Shader<ObjectShader, BuiltObjectShader> {
-  private constructor(name: string, usage: ProgramUsage);
+    private constructor(name: string, usage: ProgramUsage);
 
-  vertex(loc: string): ObjectShader;
-  geometry(loc: string): ObjectShader;
-  control(loc: string): ObjectShader;
-  eval(loc: string): ObjectShader;
-  fragment(loc: string): ObjectShader;
+    vertex(loc: string): ObjectShader;
+    geometry(loc: string): ObjectShader;
+    control(loc: string): ObjectShader;
+    eval(loc: string): ObjectShader;
+    fragment(loc: string): ObjectShader;
 
-  blendFunc(
+    blendFunc(
         index: number,
         srcRGB: BlendModeFunction,
         dstRGB: BlendModeFunction,
         srcA: BlendModeFunction,
-        dstA: BlendModeFunction,
+        dstA: BlendModeFunction
     ): ObjectShader;
 
-  blendOff(index : number) : ObjectShader;
+    blendOff(index: number): ObjectShader;
 
-  target(index: number, tex: BuiltTexture | undefined): ObjectShader;
-  ssbo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
-  ubo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
-  define(key: string, value: string): ObjectShader;
+    target(index: number, tex: BuiltTexture | undefined): ObjectShader;
+    ssbo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
+    ubo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
+    define(key: string, value: string): ObjectShader;
 
-  compile(): BuiltObjectShader;
+    compile(): BuiltObjectShader;
 }
 
 interface Command {}
 
 declare class Composite implements PostShader<Composite>, Command {
-  vertex(loc: string): Composite;
-  geometry(loc: string): Composite;
-  control(loc: string): Composite;
-  eval(loc: string): Composite;
-  fragment(loc: string): Composite;
+    vertex(loc: string): Composite;
+    geometry(loc: string): Composite;
+    control(loc: string): Composite;
+    eval(loc: string): Composite;
+    fragment(loc: string): Composite;
 
-  state(state: StateReference): Composite;
+    state(state: StateReference): Composite;
 
-  target(index: number, tex: BuiltTexture | undefined): Composite;
-  target(index: number, tex: BuiltTexture | undefined, mip: number): Composite;
-  ssbo(index: number, buf: BuiltBuffer | undefined): Composite;
-  ubo(index: number, buf: BuiltBuffer | undefined): Composite;
-  define(key: string, value: string): Composite;
+    target(index: number, tex: BuiltTexture | undefined): Composite;
+    target(index: number, tex: BuiltTexture | undefined, mip: number): Composite;
+    ssbo(index: number, buf: BuiltBuffer | undefined): Composite;
+    ubo(index: number, buf: BuiltBuffer | undefined): Composite;
+    define(key: string, value: string): Composite;
 
-  blendFunc(
-    index: number,
-    srcRGB: BlendModeFunction,
-    dstRGB: BlendModeFunction,
-    srcA: BlendModeFunction,
-    dstA: BlendModeFunction,
-  ): Composite;
+    blendFunc(
+        index: number,
+        srcRGB: BlendModeFunction,
+        dstRGB: BlendModeFunction,
+        srcA: BlendModeFunction,
+        dstA: BlendModeFunction
+    ): Composite;
 
-  compile(): PostPass;
+    compile(): PostPass;
 }
 
 declare class Compute implements PostShader<Compute>, Command {
-  location(loc: string): Compute;
-  workGroups(x: number, y: number, z: number): Compute;
-  ssbo(index: number, buf: BuiltBuffer | undefined): Compute;
-  ubo(index: number, buf: BuiltBuffer | undefined): Compute;
-  define(key: string, value: string): Compute;
-  state(state: StateReference): Compute;
+    location(loc: string): Compute;
+    workGroups(x: number, y: number, z: number): Compute;
+    ssbo(index: number, buf: BuiltBuffer | undefined): Compute;
+    ubo(index: number, buf: BuiltBuffer | undefined): Compute;
+    define(key: string, value: string): Compute;
+    state(state: StateReference): Compute;
 
-  compile(): PostPass;
+    compile(): PostPass;
 }
 
 /**
@@ -415,12 +427,12 @@ declare class Compute implements PostShader<Compute>, Command {
 interface BuiltCombinationPass {}
 
 declare class CombinationPass {
-  constructor(location: string);
-  ssbo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
-  ubo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
-  define(key: string, value: string): ObjectShader;
+    constructor(location: string);
+    ssbo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
+    ubo(index: number, buf: BuiltBuffer | undefined): ObjectShader;
+    define(key: string, value: string): ObjectShader;
 
-  compile(): BuiltCombinationPass;
+    compile(): BuiltCombinationPass;
 }
 
 // Buffers
@@ -435,32 +447,31 @@ interface BuiltGPUBuffer extends BuiltBuffer {}
  */
 interface BuiltBuffer {}
 
-declare function isKeyDown(keyCode : number) : boolean;
+declare function isKeyDown(keyCode: number): boolean;
 
 /**
  * The result of a {@link StreamingBuffer}.
  */
 declare class BuiltStreamingBuffer implements BuiltBuffer {
-    setInt(offset : number, value: number): void;
-    setFloat(offset : number, value: number): void;
-    setBool(offset : number, value: boolean): void;
-    uploadData() : void;
+    setInt(offset: number, value: number): void;
+    setFloat(offset: number, value: number): void;
+    setBool(offset: number, value: boolean): void;
+    uploadData(): void;
 }
-
 
 declare class Vector2f {
     /**
      * Initializes to 0.
      */
     constructor();
-    constructor(x : number, y: number);
-    constructor(other : Vector2f);
+    constructor(x: number, y: number);
+    constructor(other: Vector2f);
 
-    x() : number;
-    y() : number;
+    x(): number;
+    y(): number;
 
-    x(newValue : number) : void;
-    y(newValue : number) : void;
+    x(newValue: number): void;
+    y(newValue: number): void;
 }
 
 declare class Vector3f {
@@ -469,16 +480,16 @@ declare class Vector3f {
      */
     constructor();
 
-    constructor(x : number, y: number, z: number);
-    constructor(other : Vector3f);
+    constructor(x: number, y: number, z: number);
+    constructor(other: Vector3f);
 
-    x() : number;
-    y() : number;
-    z() : number;
+    x(): number;
+    y(): number;
+    z(): number;
 
-    x(newValue : number) : void;
-    y(newValue : number) : void;
-    z(newValue : number) : void;
+    x(newValue: number): void;
+    y(newValue: number): void;
+    z(newValue: number): void;
 }
 
 declare class Vector4f {
@@ -487,18 +498,18 @@ declare class Vector4f {
      */
     constructor();
 
-    constructor(x : number, y: number, z: number, w : number);
-    constructor(other : Vector4f);
+    constructor(x: number, y: number, z: number, w: number);
+    constructor(other: Vector4f);
 
-    x() : number;
-    y() : number;
-    z() : number;
-    w() : number;
+    x(): number;
+    y(): number;
+    z(): number;
+    w(): number;
 
-    x(newValue : number) : void;
-    y(newValue : number) : void;
-    z(newValue : number) : void;
-    w(newValue : number) : void;
+    x(newValue: number): void;
+    y(newValue: number): void;
+    z(newValue: number): void;
+    w(newValue: number): void;
 }
 
 declare class Matrix4f {
@@ -512,41 +523,41 @@ declare class Matrix4f {
      * @param matrix The matrix to copy
      * @return a new copy
      */
-    constructor(matrix : Matrix4f);
+    constructor(matrix: Matrix4f);
 
-    m00() : number;
-    m01() : number;
-    m02() : number;
-    m03() : number;
-    m10() : number;
-    m11() : number;
-    m12() : number;
-    m13() : number;
-    m20() : number;
-    m21() : number;
-    m22() : number;
-    m23() : number;
-    m30() : number;
-    m31() : number;
-    m32() : number;
-    m33() : number;
+    m00(): number;
+    m01(): number;
+    m02(): number;
+    m03(): number;
+    m10(): number;
+    m11(): number;
+    m12(): number;
+    m13(): number;
+    m20(): number;
+    m21(): number;
+    m22(): number;
+    m23(): number;
+    m30(): number;
+    m31(): number;
+    m32(): number;
+    m33(): number;
 
-    m00(newValue : number) : void;
-    m01(newValue : number) : void;
-    m02(newValue : number) : void;
-    m03(newValue : number) : void;
-    m10(newValue : number) : void;
-    m11(newValue : number) : void;
-    m12(newValue : number) : void;
-    m13(newValue : number) : void;
-    m20(newValue : number) : void;
-    m21(newValue : number) : void;
-    m22(newValue : number) : void;
-    m23(newValue : number) : void;
-    m30(newValue : number) : void;
-    m31(newValue : number) : void;
-    m32(newValue : number) : void;
-    m33(newValue : number) : void;
+    m00(newValue: number): void;
+    m01(newValue: number): void;
+    m02(newValue: number): void;
+    m03(newValue: number): void;
+    m10(newValue: number): void;
+    m11(newValue: number): void;
+    m12(newValue: number): void;
+    m13(newValue: number): void;
+    m20(newValue: number): void;
+    m21(newValue: number): void;
+    m22(newValue: number): void;
+    m23(newValue: number): void;
+    m30(newValue: number): void;
+    m31(newValue: number): void;
+    m32(newValue: number): void;
+    m33(newValue: number): void;
 
     /**
      * This transforms the matrix with another one, and stores the result in {@link saveMatrix}.
@@ -554,7 +565,7 @@ declare class Matrix4f {
      * @param saveMatrix The matrix that will store the result
      * @returns saveMatrix
      */
-    mul(otherMatrix : Matrix4f, saveMatrix : Matrix4f) : Matrix4f;
+    mul(otherMatrix: Matrix4f, saveMatrix: Matrix4f): Matrix4f;
 
     /**
      * This transforms the matrix with a {@link Vector4f}, and stores the result in {@link saveVector}.
@@ -562,7 +573,7 @@ declare class Matrix4f {
      * @param saveVector The vector that will store the result
      * @returns saveVector
      */
-    transform(vector : Vector4f, saveVector : Vector4f) : Vector4f;
+    transform(vector: Vector4f, saveVector: Vector4f): Vector4f;
 
     /**
      * This transforms the matrix with a {@link Vector3f}, and stores the result in {@link saveVector}.
@@ -570,45 +581,45 @@ declare class Matrix4f {
      * @param saveVector The vector that will store the result
      * @returns saveVector
      */
-    transformPosition(vector : Vector3f, saveVector : Vector3f) : Vector3f;
+    transformPosition(vector: Vector3f, saveVector: Vector3f): Vector3f;
 
-    translate(x : number, y : number, z : number) : Matrix4f;
-    scale(x : number, y : number, z : number) : Matrix4f;
-    rotate(angle : number, x : number, y : number, z : number) : Matrix4f;
+    translate(x: number, y: number, z: number): Matrix4f;
+    scale(x: number, y: number, z: number): Matrix4f;
+    rotate(angle: number, x: number, y: number, z: number): Matrix4f;
 }
 
 declare class WorldState {
     /**
      * Returns the projection matrix. This will always be a new copy.
      */
-    projection() : Matrix4f;
+    projection(): Matrix4f;
 
     /**
      * Returns the view matrix. This will always be a new copy.
      */
-    view() : Matrix4f;
+    view(): Matrix4f;
 
     /**
      * Returns the camera position. This will always be a new copy.
      */
-    cameraPos() : Vector3f;
+    cameraPos(): Vector3f;
 
     /**
      * Return the last frame time (ap.time.delta).
      */
-    lastFrameTime() : number;
+    lastFrameTime(): number;
 
     /**
      * Return the elapsed frame time (ap.time.elapsed).
      */
-    frameTimeCounter() : number;
+    frameTimeCounter(): number;
 
     /**
      * Return the current frame (ap.time.frames).
      */
-    currentFrame() : number;
+    currentFrame(): number;
 
-    rendererConfig() : RendererConfig;
+    rendererConfig(): RendererConfig;
 }
 
 /**
@@ -616,9 +627,9 @@ declare class WorldState {
  * Automatically cleared
  */
 declare class StreamingBuffer {
-  private constructor(size: number);
+    private constructor(size: number);
 
-  build(): BuiltStreamingBuffer;
+    build(): BuiltStreamingBuffer;
 }
 
 // Textures
@@ -633,17 +644,17 @@ interface InternalTextureFormat {}
  * This is also automatically implemented by {@link PNGTexture} and {@link RawTexture}.
  */
 interface BuiltTexture {
-    readBack() : ArrayBuffer;
+    readBack(): ArrayBuffer;
 
-    name() : string;
-    imageName() : string;
-    width() : number;
-    height() : number;
-    depth() : number;
+    name(): string;
+    imageName(): string;
+    width(): number;
+    height(): number;
+    depth(): number;
 }
 
 declare class TextureReference {
-    constructor(samplerName : string, imageName : string);
+    constructor(samplerName: string, imageName: string);
 
     format(internalFormat: InternalTextureFormat): TextureReference;
 
@@ -651,11 +662,11 @@ declare class TextureReference {
     height(height: number): TextureReference;
     depth(depth: number): TextureReference;
 
-    build() : ActiveTextureReference;
+    build(): ActiveTextureReference;
 }
 
 interface ActiveTextureReference extends BuiltTexture {
-    pointTo(t : BuiltTexture) : ActiveTextureReference;
+    pointTo(t: BuiltTexture): ActiveTextureReference;
 }
 
 /**
@@ -663,18 +674,18 @@ interface ActiveTextureReference extends BuiltTexture {
  * @see ArrayTexture
  */
 declare class Texture {
-  private constructor(name: string);
+    private constructor(name: string);
 
-  format(internalFormat: InternalTextureFormat): Texture;
-  clearColor(r: number, g: number, b: number, a: number): Texture;
-  clear(clear: boolean): Texture;
-  mipmap(mipmap: boolean): Texture;
-  width(width: number): Texture;
-  height(height: number): Texture;
-  depth(depth: number): Texture;
-  readBack(read: boolean): Texture;
+    format(internalFormat: InternalTextureFormat): Texture;
+    clearColor(r: number, g: number, b: number, a: number): Texture;
+    clear(clear: boolean): Texture;
+    mipmap(mipmap: boolean): Texture;
+    width(width: number): Texture;
+    height(height: number): Texture;
+    depth(depth: number): Texture;
+    readBack(read: boolean): Texture;
 
-  build(): BuiltTexture;
+    build(): BuiltTexture;
 }
 
 /**
@@ -687,17 +698,17 @@ interface PType {}
  * @see PNGTexture
  */
 declare class RawTexture {
-  private constructor(name: string, location: string);
+    private constructor(name: string, location: string);
 
-  format(internalFormat: InternalTextureFormat): RawTexture;
-  type(pixel: PType): RawTexture;
-  blur(b: boolean): RawTexture;
-  clamp(b: boolean): RawTexture;
-  width(width: number): RawTexture;
-  height(height: number): RawTexture;
-  depth(depth: number): RawTexture;
+    format(internalFormat: InternalTextureFormat): RawTexture;
+    type(pixel: PType): RawTexture;
+    blur(b: boolean): RawTexture;
+    clamp(b: boolean): RawTexture;
+    width(width: number): RawTexture;
+    height(height: number): RawTexture;
+    depth(depth: number): RawTexture;
 
-  load(): BuiltTexture;
+    load(): BuiltTexture;
 }
 
 /**
@@ -707,17 +718,17 @@ declare class RawTexture {
 declare class ArrayTexture {
     private constructor(name: string);
 
-  format(internalFormat: InternalTextureFormat): ArrayTexture;
-  clearColor(r: number, g: number, b: number, a: number): ArrayTexture;
-  clear(clear: boolean): ArrayTexture;
-  imageName(name: string): ArrayTexture;
-  mipmap(mipmap: boolean): ArrayTexture;
-  width(width: number): ArrayTexture;
-  height(height: number): ArrayTexture;
+    format(internalFormat: InternalTextureFormat): ArrayTexture;
+    clearColor(r: number, g: number, b: number, a: number): ArrayTexture;
+    clear(clear: boolean): ArrayTexture;
+    imageName(name: string): ArrayTexture;
+    mipmap(mipmap: boolean): ArrayTexture;
+    width(width: number): ArrayTexture;
+    height(height: number): ArrayTexture;
 
-  build(): BuiltTexture;
+    build(): BuiltTexture;
 
-  slices(slice: number): ArrayTexture;
+    slices(slice: number): ArrayTexture;
 }
 
 /**
@@ -738,143 +749,143 @@ declare class PNGTexture implements BuiltTexture {
 // The auto-generated stuff goes here
 
 declare namespace PixelType {
-  let BYTE: PType;
-  let SHORT: PType;
-  let INT: PType;
-  let HALF_FLOAT: PType;
-  let FLOAT: PType;
-  let UNSIGNED_BYTE: PType;
-  let UNSIGNED_BYTE_3_3_2: PType;
-  let UNSIGNED_BYTE_2_3_3_REV: PType;
-  let UNSIGNED_SHORT: PType;
-  let UNSIGNED_SHORT_5_6_5: PType;
-  let UNSIGNED_SHORT_5_6_5_REV: PType;
-  let UNSIGNED_SHORT_4_4_4_4: PType;
-  let UNSIGNED_SHORT_4_4_4_4_REV: PType;
-  let UNSIGNED_SHORT_5_5_5_1: PType;
-  let UNSIGNED_SHORT_1_5_5_5_REV: PType;
-  let UNSIGNED_INT: PType;
-  let UNSIGNED_INT_8_8_8_8: PType;
-  let UNSIGNED_INT_8_8_8_8_REV: PType;
-  let UNSIGNED_INT_10_10_10_2: PType;
-  let UNSIGNED_INT_2_10_10_10_REV: PType;
-  let UNSIGNED_INT_10F_11F_11F_REV: PType;
-  let UNSIGNED_INT_5_9_9_9_REV: PType;
+    let BYTE: PType;
+    let SHORT: PType;
+    let INT: PType;
+    let HALF_FLOAT: PType;
+    let FLOAT: PType;
+    let UNSIGNED_BYTE: PType;
+    let UNSIGNED_BYTE_3_3_2: PType;
+    let UNSIGNED_BYTE_2_3_3_REV: PType;
+    let UNSIGNED_SHORT: PType;
+    let UNSIGNED_SHORT_5_6_5: PType;
+    let UNSIGNED_SHORT_5_6_5_REV: PType;
+    let UNSIGNED_SHORT_4_4_4_4: PType;
+    let UNSIGNED_SHORT_4_4_4_4_REV: PType;
+    let UNSIGNED_SHORT_5_5_5_1: PType;
+    let UNSIGNED_SHORT_1_5_5_5_REV: PType;
+    let UNSIGNED_INT: PType;
+    let UNSIGNED_INT_8_8_8_8: PType;
+    let UNSIGNED_INT_8_8_8_8_REV: PType;
+    let UNSIGNED_INT_10_10_10_2: PType;
+    let UNSIGNED_INT_2_10_10_10_REV: PType;
+    let UNSIGNED_INT_10F_11F_11F_REV: PType;
+    let UNSIGNED_INT_5_9_9_9_REV: PType;
 }
 
 declare namespace Func {
-  let ZERO: BlendModeFunction;
-  let ONE: BlendModeFunction;
-  let SRC_COLOR: BlendModeFunction;
-  let ONE_MINUS_SRC_COLOR: BlendModeFunction;
-  let DST_COLOR: BlendModeFunction;
-  let ONE_MINUS_DST_COLOR: BlendModeFunction;
-  let SRC_ALPHA: BlendModeFunction;
-  let ONE_MINUS_SRC_ALPHA: BlendModeFunction;
-  let DST_ALPHA: BlendModeFunction;
-  let ONE_MINUS_DST_ALPHA: BlendModeFunction;
-  let SRC_ALPHA_SATURATE: BlendModeFunction;
+    let ZERO: BlendModeFunction;
+    let ONE: BlendModeFunction;
+    let SRC_COLOR: BlendModeFunction;
+    let ONE_MINUS_SRC_COLOR: BlendModeFunction;
+    let DST_COLOR: BlendModeFunction;
+    let ONE_MINUS_DST_COLOR: BlendModeFunction;
+    let SRC_ALPHA: BlendModeFunction;
+    let ONE_MINUS_SRC_ALPHA: BlendModeFunction;
+    let DST_ALPHA: BlendModeFunction;
+    let ONE_MINUS_DST_ALPHA: BlendModeFunction;
+    let SRC_ALPHA_SATURATE: BlendModeFunction;
 }
 
 declare namespace Format {
-  let RGBA: InternalTextureFormat;
-  let R8: InternalTextureFormat;
-  let RG8: InternalTextureFormat;
-  let RGB8: InternalTextureFormat;
-  let RGBA8: InternalTextureFormat;
-  let R8_SNORM: InternalTextureFormat;
-  let RG8_SNORM: InternalTextureFormat;
-  let RGB8_SNORM: InternalTextureFormat;
-  let RGBA8_SNORM: InternalTextureFormat;
-  let R16: InternalTextureFormat;
-  let RG16: InternalTextureFormat;
-  let RGB16: InternalTextureFormat;
-  let RGBA16: InternalTextureFormat;
-  let R16_SNORM: InternalTextureFormat;
-  let RG16_SNORM: InternalTextureFormat;
-  let RGB16_SNORM: InternalTextureFormat;
-  let RGBA16_SNORM: InternalTextureFormat;
-  let R16F: InternalTextureFormat;
-  let RG16F: InternalTextureFormat;
-  let RGB16F: InternalTextureFormat;
-  let RGBA16F: InternalTextureFormat;
-  let R32F: InternalTextureFormat;
-  let RG32F: InternalTextureFormat;
-  let RGB32F: InternalTextureFormat;
-  let RGBA32F: InternalTextureFormat;
-  let R8I: InternalTextureFormat;
-  let RG8I: InternalTextureFormat;
-  let RGB8I: InternalTextureFormat;
-  let RGBA8I: InternalTextureFormat;
-  let R8UI: InternalTextureFormat;
-  let RG8UI: InternalTextureFormat;
-  let RGB8UI: InternalTextureFormat;
-  let RGBA8UI: InternalTextureFormat;
-  let R16I: InternalTextureFormat;
-  let RG16I: InternalTextureFormat;
-  let RGB16I: InternalTextureFormat;
-  let RGBA16I: InternalTextureFormat;
-  let R16UI: InternalTextureFormat;
-  let RG16UI: InternalTextureFormat;
-  let RGB16UI: InternalTextureFormat;
-  let RGBA16UI: InternalTextureFormat;
-  let R32I: InternalTextureFormat;
-  let RG32I: InternalTextureFormat;
-  let RGB32I: InternalTextureFormat;
-  let RGBA32I: InternalTextureFormat;
-  let R32UI: InternalTextureFormat;
-  let RG32UI: InternalTextureFormat;
-  let RGB32UI: InternalTextureFormat;
-  let RGBA32UI: InternalTextureFormat;
-  let RGBA2: InternalTextureFormat;
-  let RGBA4: InternalTextureFormat;
-  let R3_G3_B2: InternalTextureFormat;
-  let RGB5_A1: InternalTextureFormat;
-  let RGB565: InternalTextureFormat;
-  let RGB10_A2: InternalTextureFormat;
-  let RGB10_A2UI: InternalTextureFormat;
-  let R11F_G11F_B10F: InternalTextureFormat;
-  let RGB9_E5: InternalTextureFormat;
+    let RGBA: InternalTextureFormat;
+    let R8: InternalTextureFormat;
+    let RG8: InternalTextureFormat;
+    let RGB8: InternalTextureFormat;
+    let RGBA8: InternalTextureFormat;
+    let R8_SNORM: InternalTextureFormat;
+    let RG8_SNORM: InternalTextureFormat;
+    let RGB8_SNORM: InternalTextureFormat;
+    let RGBA8_SNORM: InternalTextureFormat;
+    let R16: InternalTextureFormat;
+    let RG16: InternalTextureFormat;
+    let RGB16: InternalTextureFormat;
+    let RGBA16: InternalTextureFormat;
+    let R16_SNORM: InternalTextureFormat;
+    let RG16_SNORM: InternalTextureFormat;
+    let RGB16_SNORM: InternalTextureFormat;
+    let RGBA16_SNORM: InternalTextureFormat;
+    let R16F: InternalTextureFormat;
+    let RG16F: InternalTextureFormat;
+    let RGB16F: InternalTextureFormat;
+    let RGBA16F: InternalTextureFormat;
+    let R32F: InternalTextureFormat;
+    let RG32F: InternalTextureFormat;
+    let RGB32F: InternalTextureFormat;
+    let RGBA32F: InternalTextureFormat;
+    let R8I: InternalTextureFormat;
+    let RG8I: InternalTextureFormat;
+    let RGB8I: InternalTextureFormat;
+    let RGBA8I: InternalTextureFormat;
+    let R8UI: InternalTextureFormat;
+    let RG8UI: InternalTextureFormat;
+    let RGB8UI: InternalTextureFormat;
+    let RGBA8UI: InternalTextureFormat;
+    let R16I: InternalTextureFormat;
+    let RG16I: InternalTextureFormat;
+    let RGB16I: InternalTextureFormat;
+    let RGBA16I: InternalTextureFormat;
+    let R16UI: InternalTextureFormat;
+    let RG16UI: InternalTextureFormat;
+    let RGB16UI: InternalTextureFormat;
+    let RGBA16UI: InternalTextureFormat;
+    let R32I: InternalTextureFormat;
+    let RG32I: InternalTextureFormat;
+    let RGB32I: InternalTextureFormat;
+    let RGBA32I: InternalTextureFormat;
+    let R32UI: InternalTextureFormat;
+    let RG32UI: InternalTextureFormat;
+    let RGB32UI: InternalTextureFormat;
+    let RGBA32UI: InternalTextureFormat;
+    let RGBA2: InternalTextureFormat;
+    let RGBA4: InternalTextureFormat;
+    let R3_G3_B2: InternalTextureFormat;
+    let RGB5_A1: InternalTextureFormat;
+    let RGB565: InternalTextureFormat;
+    let RGB10_A2: InternalTextureFormat;
+    let RGB10_A2UI: InternalTextureFormat;
+    let R11F_G11F_B10F: InternalTextureFormat;
+    let RGB9_E5: InternalTextureFormat;
 }
 
 declare namespace Usage {
-  let BASIC: ProgramUsage;
-  let TEXTURED: ProgramUsage;
-  let EMISSIVE: ProgramUsage;
-  let CLOUDS: ProgramUsage;
-  let SKYBOX: ProgramUsage;
-  let SKY_TEXTURES: ProgramUsage;
-  let TERRAIN_SOLID: ProgramUsage;
-  let TERRAIN_CUTOUT: ProgramUsage;
-  let TERRAIN_TRANSLUCENT: ProgramUsage;
-  let TEXT: ProgramUsage;
-  let ENTITY_SOLID: ProgramUsage;
-  let ENTITY_CUTOUT: ProgramUsage;
-  let ENTITY_TRANSLUCENT: ProgramUsage;
-  let LIGHTNING: ProgramUsage;
-  let ENTITY_GLINT: ProgramUsage;
-  let BLOCK_ENTITY: ProgramUsage;
-  let BLOCK_ENTITY_TRANSLUCENT: ProgramUsage;
-  let PARTICLES: ProgramUsage;
-  let PARTICLES_TRANSLUCENT: ProgramUsage;
-  let CRUMBLING: ProgramUsage;
-  let LINES: ProgramUsage;
-  let WEATHER: ProgramUsage;
-  let HAND: ProgramUsage;
-  let TRANSLUCENT_HAND: ProgramUsage;
-  let SHADOW: ProgramUsage;
-  let SHADOW_TEXTURED: ProgramUsage;
-  let SHADOW_TERRAIN_SOLID: ProgramUsage;
-  let SHADOW_TERRAIN_CUTOUT: ProgramUsage;
-  let SHADOW_TERRAIN_TRANSLUCENT: ProgramUsage;
-  let SHADOW_ENTITY_SOLID: ProgramUsage;
-  let SHADOW_ENTITY_CUTOUT: ProgramUsage;
-  let SHADOW_ENTITY_TRANSLUCENT: ProgramUsage;
-  let SHADOW_BLOCK_ENTITY: ProgramUsage;
-  let SHADOW_BLOCK_ENTITY_TRANSLUCENT: ProgramUsage;
-  let SHADOW_PARTICLES: ProgramUsage;
-  let SHADOW_PARTICLES_TRANSLUCENT: ProgramUsage;
-  let POINT : ProgramUsage;
+    let BASIC: ProgramUsage;
+    let TEXTURED: ProgramUsage;
+    let EMISSIVE: ProgramUsage;
+    let CLOUDS: ProgramUsage;
+    let SKYBOX: ProgramUsage;
+    let SKY_TEXTURES: ProgramUsage;
+    let TERRAIN_SOLID: ProgramUsage;
+    let TERRAIN_CUTOUT: ProgramUsage;
+    let TERRAIN_TRANSLUCENT: ProgramUsage;
+    let TEXT: ProgramUsage;
+    let ENTITY_SOLID: ProgramUsage;
+    let ENTITY_CUTOUT: ProgramUsage;
+    let ENTITY_TRANSLUCENT: ProgramUsage;
+    let LIGHTNING: ProgramUsage;
+    let ENTITY_GLINT: ProgramUsage;
+    let BLOCK_ENTITY: ProgramUsage;
+    let BLOCK_ENTITY_TRANSLUCENT: ProgramUsage;
+    let PARTICLES: ProgramUsage;
+    let PARTICLES_TRANSLUCENT: ProgramUsage;
+    let CRUMBLING: ProgramUsage;
+    let LINES: ProgramUsage;
+    let WEATHER: ProgramUsage;
+    let HAND: ProgramUsage;
+    let TRANSLUCENT_HAND: ProgramUsage;
+    let SHADOW: ProgramUsage;
+    let SHADOW_TEXTURED: ProgramUsage;
+    let SHADOW_TERRAIN_SOLID: ProgramUsage;
+    let SHADOW_TERRAIN_CUTOUT: ProgramUsage;
+    let SHADOW_TERRAIN_TRANSLUCENT: ProgramUsage;
+    let SHADOW_ENTITY_SOLID: ProgramUsage;
+    let SHADOW_ENTITY_CUTOUT: ProgramUsage;
+    let SHADOW_ENTITY_TRANSLUCENT: ProgramUsage;
+    let SHADOW_BLOCK_ENTITY: ProgramUsage;
+    let SHADOW_BLOCK_ENTITY_TRANSLUCENT: ProgramUsage;
+    let SHADOW_PARTICLES: ProgramUsage;
+    let SHADOW_PARTICLES_TRANSLUCENT: ProgramUsage;
+    let POINT: ProgramUsage;
 }
 
 /**

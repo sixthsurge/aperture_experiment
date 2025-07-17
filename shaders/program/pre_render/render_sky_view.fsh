@@ -2,11 +2,11 @@
 #include "/include/prelude.glsl"
 #include "/include/buffer/global.glsl"
 
-layout (location = 0) out vec3 sky_view_out;
+layout(location = 0) out vec3 sky_view_out;
 
-noperspective in vec2 uv;
+in vec2 uv;
 
-layout (std140, binding = 0) uniform GlobalBuffer {
+layout(std140, binding = 0) uniform GlobalBuffer {
     GlobalData global;
 };
 

@@ -12,7 +12,9 @@ function hexToRgb(hex) {
 }
 function setLightColorEx(hex, ...blocks) {
   const color = hexToRgb(hex);
-  blocks.forEach((block) => setLightColor(new NamespacedId(block), color.r, color.g, color.b, 255));
+  blocks.forEach(
+    (block) => setLightColor(new NamespacedId(block), color.r, color.g, color.b, 255)
+  );
 }
 function configureLightColors() {
   setLightColorEx("#362b21", "brown_mushroom");
@@ -178,7 +180,7 @@ function createBuffers(pipeline) {
   streamingBuffers.settings = pipeline.createStreamingBuffer(streamedSettingsBufferSize);
   let buffers = new Buffers();
   buffers.globalData = pipeline.createBuffer(globalDataBufferSize, false);
-  buffers.skySh = pipeline.createBuffer(4 * 4 * 9, false);
+  buffers.skySh = pipeline.createBuffer(4 * 4 * 10, false);
   buffers.exposure = pipeline.createBuffer(4 * 2, false);
   return buffers;
 }
@@ -189,6 +191,12 @@ function createObjectShaders(pipeline, textures, buffers) {
     [Usage.ENTITY_SOLID, "entity_solid", "OBJECT_ENTITY_SOLID"],
     [Usage.ENTITY_CUTOUT, "entity_cutout", "OBJECT_ENTITY_CUTOUT"],
     [Usage.BLOCK_ENTITY, "block_entity", "OBJECT_BLOCK_ENTITY"],
+    [Usage.ENTITY_TRANSLUCENT, "entity_translucent", "OBJECT_ENTITY_TRANSLUCENT"],
+    [
+      Usage.BLOCK_ENTITY_TRANSLUCENT,
+      "block_entity_translucent",
+      "OBJECT_BLOCK_ENTITY_TRANSLUCENT"
+    ],
     [Usage.PARTICLES, "particles", "OBJECT_PARTICLES"],
     [Usage.HAND, "hand", "OBJECT_HAND"],
     [Usage.EMISSIVE, "emissive", "OBJECT_EMISSIVE"],
@@ -200,15 +208,13 @@ function createObjectShaders(pipeline, textures, buffers) {
   }
   const translucentPrograms = [
     [Usage.TERRAIN_TRANSLUCENT, "terrain_translucent", "OBJECT_TERRAIN_TRANSLUCENT"],
-    [Usage.ENTITY_TRANSLUCENT, "entity_translucent", "OBJECT_ENTITY_TRANSLUCENT"],
-    [Usage.BLOCK_ENTITY_TRANSLUCENT, "block_entity_translucent", "OBJECT_BLOCK_ENTITY_TRANSLUCENT"],
     [Usage.PARTICLES_TRANSLUCENT, "particles_translucent", "OBJECT_PARTICLES_TRANSLUCENT"],
     [Usage.TRANSLUCENT_HAND, "translucent_hand", "OBJECT_TRANSLUCENT_HAND"],
     [Usage.TEXTURED, "textured", "OBJECT_TEXTURED"],
     [Usage.TEXT, "text", "OBJECT_TEXT"]
   ];
   for (const [usage, name, macro] of translucentPrograms) {
-    pipeline.createObjectShader(name, usage).vertex("program/object/all_translucent.vsh").fragment("program/object/all_translucent.fsh").target(0, textures.radiance).define(macro, "1").compile();
+    pipeline.createObjectShader(name, usage).vertex("program/object/all_translucent.vsh").fragment("program/object/all_translucent.fsh").target(0, textures.radiance).ubo(0, buffers.globalData).define(macro, "1").compile();
   }
   pipeline.createObjectShader("shadow", Usage.SHADOW).vertex("program/object/shadow.vsh").fragment("program/object/shadow.fsh").compile();
   if (getBoolSetting("pointShadowEnabled")) {
@@ -235,11 +241,7 @@ function createPostRenderCommands(commands, textures, buffers) {
 function createExposureCommands(commands, textures, buffers) {
   commands.createCompute("clear_histogram").location("program/post_render/exposure/clear_histogram.csh").workGroups(1, 1, 1).state(stateReferences.autoExposure).compile();
   commands.barrier(IMAGE_BIT | FETCH_BIT);
-  commands.createCompute("build_histogram").location("program/post_render/exposure/build_histogram.csh").workGroups(
-    Math.ceil(screenWidth / 32),
-    Math.ceil(screenHeight / 32),
-    1
-  ).state(stateReferences.autoExposure).compile();
+  commands.createCompute("build_histogram").location("program/post_render/exposure/build_histogram.csh").workGroups(Math.ceil(screenWidth / 32), Math.ceil(screenHeight / 32), 1).state(stateReferences.autoExposure).compile();
   commands.barrier(IMAGE_BIT | FETCH_BIT);
   commands.createCompute("calculate_exposure").location("program/post_render/exposure/calculate_exposure.csh").workGroups(1, 1, 1).ssbo(0, buffers.exposure).state(stateReferences.autoExposure).compile();
   commands.barrier(SSBO_BIT | UBO_BIT);
@@ -287,7 +289,7 @@ function applyDynamicSettings() {
   streamingBuffers.settings.setBool(0, getBoolSetting("bloomEnabled"));
   streamingBuffers.settings.setFloat(4, getFloatSetting("bloomIntensity"));
   streamingBuffers.settings.setBool(8, getBoolSetting("autoExposureEnabled"));
-  streamingBuffers.settings.setFloat(16, getFloatSetting("manualExposureValue"));
+  streamingBuffers.settings.setFloat(12, getFloatSetting("manualExposureValue"));
 }
 function createGlobalMacros() {
   defineGlobally("TEXTURE_FORMAT", "TEXTURE_FORMAT_LAB");

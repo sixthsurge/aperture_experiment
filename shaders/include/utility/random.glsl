@@ -1,4 +1,4 @@
-#if !defined INCLUDE_UTILITY_RANDOM
+#if ! defined INCLUDE_UTILITY_RANDOM
 #define INCLUDE_UTILITY_RANDOM
 
 // http://extremelearning.com.au/unreasonable-effectiveness-of-quasirandom-sequences/
@@ -9,22 +9,22 @@ const float phi3 = 1.2207440846; // Solution to x^4 = x + 1
 
 float r1(int n, float seed) {
     const float alpha = 1.0 / phi1;
-	return fract(seed + n * alpha);
+    return fract(seed + n * alpha);
 }
 float r1(int n) {
-	return r1(n, 0.5);
+    return r1(n, 0.5);
 }
 float r1_next(float u) {
     const float alpha = 1.0 / phi1;
-	return fract(u + alpha);
+    return fract(u + alpha);
 }
 
 vec2 r2(int n, vec2 seed) {
     const vec2 alpha = 1.0 / vec2(phi2, phi2 * phi2);
-	return fract(seed + n * alpha);
+    return fract(seed + n * alpha);
 }
 vec2 r2(int n) {
-	return r2(n, vec2(0.5));
+    return r2(n, vec2(0.5));
 }
 vec2 r2_next(vec2 u) {
     const vec2 alpha = 1.0 / vec2(phi2, phi2 * phi2);
@@ -33,14 +33,14 @@ vec2 r2_next(vec2 u) {
 
 vec3 r3(int n, vec3 seed) {
     const vec3 alpha = 1.0 / vec3(phi3, phi3 * phi3, phi3 * phi3 * phi3);
-	return fract(seed + n * alpha);
+    return fract(seed + n * alpha);
 }
 vec3 r3(int n) {
-	return r3(n, vec3(0.5));
+    return r3(n, vec3(0.5));
 }
 vec3 r3_next(vec3 u) {
     const vec3 alpha = 1.0 / vec3(phi3, phi3 * phi3, phi3 * phi3 * phi3);
-	return fract(u + alpha);
+    return fract(u + alpha);
 }
 
 //----------------------------------------------------------------------------//
@@ -59,7 +59,7 @@ uint lowbias32(uint x) {
 uint lowbias32_inverse(uint x) {
     x ^= x >> 16;
     x *= 0x43021123u;
-    x ^= x >> 15 ^ x >> 30;
+    x ^= (x >> 15) ^ (x >> 30);
     x *= 0x1d69e2a5u;
     x ^= x >> 16;
     return x;
@@ -70,9 +70,20 @@ float rand_next_float(inout uint state) {
     return float(state) / float(0xffffffffu);
 }
 
-vec2 rand_next_vec2(inout uint state) { return vec2(rand_next_float(state), rand_next_float(state)); }
-vec3 rand_next_vec3(inout uint state) { return vec3(rand_next_float(state), rand_next_float(state), rand_next_float(state)); }
-vec4 rand_next_vec4(inout uint state) { return vec4(rand_next_float(state), rand_next_float(state), rand_next_float(state), rand_next_float(state)); }
+vec2 rand_next_vec2(inout uint state) {
+    return vec2(rand_next_float(state), rand_next_float(state));
+}
+vec3 rand_next_vec3(inout uint state) {
+    return vec3(rand_next_float(state), rand_next_float(state), rand_next_float(state));
+}
+vec4 rand_next_vec4(inout uint state) {
+    return vec4(
+        rand_next_float(state),
+        rand_next_float(state),
+        rand_next_float(state),
+        rand_next_float(state)
+    );
+}
 
 //----------------------------------------------------------------------------//
 
@@ -81,7 +92,7 @@ vec4 rand_next_vec4(inout uint state) { return vec4(rand_next_float(state), rand
 
 //*
 float hash1(float p) {
-    p = fract(p * .1031);
+    p = fract(p * 0.1031);
     p *= p + 33.33;
     p *= p + p;
     return fract(p);
@@ -98,13 +109,12 @@ float hash1(vec2 p) {
 
 //*
 float hash1(vec3 p3) {
-	p3  = fract(p3 * .1031);
+    p3 = fract(p3 * 0.1031);
     p3 += dot(p3, p3.zyx + 31.32);
     return fract((p3.x + p3.y) * p3.z);
 }
 //*/
 
-/*
 vec2 hash2(float p) {
 	vec3 p3 = fract(vec3(p) * vec3(.1031, .1030, .0973));
 	p3 += dot(p3, p3.yzx + 33.33);
@@ -114,17 +124,17 @@ vec2 hash2(float p) {
 
 //*
 vec2 hash2(vec2 p) {
-	vec3 p3 = fract(vec3(p.xyx) * vec3(.1031, .1030, .0973));
-    p3 += dot(p3, p3.yzx+33.33);
-    return fract((p3.xx+p3.yz)*p3.zy);
+    vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.103, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
 }
 //*/
 
 //*
 vec2 hash2(vec3 p3) {
-	p3 = fract(p3 * vec3(.1031, .1030, .0973));
-    p3 += dot(p3, p3.yzx+33.33);
-    return fract((p3.xx+p3.yz)*p3.zy);
+    p3 = fract(p3 * vec3(0.1031, 0.103, 0.0973));
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.xx + p3.yz) * p3.zy);
 }
 //*/
 
@@ -163,17 +173,17 @@ vec4 hash4(float p) {
 
 //*
 vec4 hash4(vec2 p) {
-	vec4 p4 = fract(vec4(p.xyxy) * vec4(.1031, .1030, .0973, .1099));
-    p4 += dot(p4, p4.wzxy+33.33);
-    return fract((p4.xxyz+p4.yzzw)*p4.zywx);
+    vec4 p4 = fract(vec4(p.xyxy) * vec4(0.1031, 0.103, 0.0973, 0.1099));
+    p4 += dot(p4, p4.wzxy + 33.33);
+    return fract((p4.xxyz + p4.yzzw) * p4.zywx);
 }
 //*/
 
 //*
 vec4 hash4(vec3 p) {
-	vec4 p4 = fract(vec4(p.xyzx)  * vec4(.1031, .1030, .0973, .1099));
-    p4 += dot(p4, p4.wzxy+33.33);
-    return fract((p4.xxyz+p4.yzzw)*p4.zywx);
+    vec4 p4 = fract(vec4(p.xyzx) * vec4(0.1031, 0.103, 0.0973, 0.1099));
+    p4 += dot(p4, p4.wzxy + 33.33);
+    return fract((p4.xxyz + p4.yzzw) * p4.zywx);
 }
 //*/
 
@@ -189,9 +199,10 @@ vec4 hash4(vec4 p4) {
 
 // One dimensional value noise
 float noise_1d(float x) {
-	float i, f = modf(x, i);
-	f = cubic_smooth(f);
-	return mix(hash1(i), hash1(i + 1.0), f);
+    float i,
+        f = modf(x, i);
+    f = cubic_smooth(f);
+    return mix(hash1(i), hash1(i + 1.0), f);
 }
 
 #endif // INCLUDE_UTILITY_RANDOM

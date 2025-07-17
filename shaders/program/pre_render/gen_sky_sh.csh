@@ -10,8 +10,6 @@ layout (std140, binding = 0) buffer SkyShBuffer {
 	SkySh sky_sh;
 };
 
-layout (r32ui) uniform writeonly uimage2D exposure_histogram_img;
-
 uniform sampler2D sky_view_tex;
 
 #include "/include/sky/projection.glsl"
@@ -21,7 +19,7 @@ uniform sampler2D sky_view_tex;
 
 void main() {
 	const uint sample_count = 256;
-	uint i = uint(gl_LocalInvocationID.x);
+	uint i = uint(gl_LocalInvocationIndex);
 
 	// Calculate SH coefficients for each sample
 
@@ -52,9 +50,9 @@ void main() {
 	// Save SH coeff in SH skylight buffer
 
 	for (uint band = 0u; band < 9u; ++band) {
-		sky_sh.coeff[i] = shared_memory[0][band];
+		sky_sh.coeff[band] = shared_memory[0][band];
 	}
 
 	// Store irradiance facing up for forward lighting 
-	sky_sh.irradiance_up = sh_evaluate_irradiance(shared_memory[0], vec3(0.0, 1.0, 0.0), 1.0);
+	sky_sh.irradiance_up = shared_memory[0][0];
 }
