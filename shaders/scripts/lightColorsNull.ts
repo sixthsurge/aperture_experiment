@@ -1,3 +1,5 @@
+import type {} from "./iris";
+
 /*
  * Block light colours from Null's point shadow sample pack
  * https://github.com/Null-MC/PointShadowSample

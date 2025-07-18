@@ -5,7 +5,7 @@
 // controls
 const float min_luminance = 0.001;
 const float max_luminance = 10.0;
-const float bias = 2.0;
+const float bias = 3.0;
 
 const float K = 12.5; // Light-meter calibration constant
 const float sensitivity = 100.0; // ISO

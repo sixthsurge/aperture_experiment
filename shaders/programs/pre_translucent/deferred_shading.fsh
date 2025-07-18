@@ -128,7 +128,7 @@ void main() {
         // Emission 
 
         float emission = float(material_mask_emission(gbuffer_data.material_mask)) * rcp(15.0);
-        radiance_out += 0.1 * emission * material.albedo;
+        radiance_out += 0.1 * (0.1 * emission + material.emission) * material.albedo;
 
         // Point shadows
 
@@ -159,7 +159,7 @@ void main() {
             float shadow = texture(pointLightFiltered, vec4(-light_dir, i), ndc_depth * 0.5 + 0.5).x
                 * float(dot(gbuffer_data.flat_normal, light_dir) > eps);
 
-            float attenuation = rcp(sqr(light_distance));
+            float attenuation = rcp(sqr(light_distance) + 1.0);
             float edge_fade = 1.0 - pow8(shadow_depth);
             float light_intensity = iris_getEmission(light.block);
             vec3 light_color = srgb_eotf_inv(iris_getLightColor(light.block).rgb) * rec709_to_rec2020;

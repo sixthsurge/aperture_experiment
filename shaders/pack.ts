@@ -1,13 +1,14 @@
 import type {} from "./iris";
-import { configureLightColors } from "./script/lightColorsNull.ts";
+import { Flipper, defineGloballyIf } from "./scripts/helpers.ts";
+import { configureLightColors } from "./scripts/lightColorsNull.ts";
 
 class Textures {
     radiance: BuiltTexture;
     gbufferData: BuiltTexture;
     skyView: BuiltTexture;
     exposureHistogram: BuiltTexture;
-    bloomTiles: BuiltTexture;
-    bloomTilesAlt: BuiltTexture;
+    bloomTilesA: BuiltTexture;
+    bloomTilesB: BuiltTexture;
 }
 
 class Buffers {
@@ -124,7 +125,7 @@ function createTextures(pipeline: PipelineConfig): Textures {
 
     textures.radiance = pipeline
         .createTexture("radiance_tex")
-        .format(Format.RGBA16F)
+        .format(Format.R11F_G11F_B10F)
         .width(screenWidth)
         .height(screenHeight)
         .clear(false)
@@ -140,24 +141,24 @@ function createTextures(pipeline: PipelineConfig): Textures {
 
     textures.skyView = pipeline
         .createTexture("sky_view_tex")
-        .format(Format.RGB16F)
+        .format(Format.R11F_G11F_B10F)
         .width(skyViewRes[0])
         .height(skyViewRes[1])
         .clear(false)
         .build();
 
-    textures.bloomTiles = pipeline
-        .createTexture("bloom_tiles_tex")
-        .format(Format.RGB16F)
+    textures.bloomTilesA = pipeline
+        .createImageTexture("bloom_tiles_tex_a", "bloom_tiles_img_a")
+        .format(Format.R11F_G11F_B10F)
         .width(screenWidth)
         .height(screenHeight)
         .mipmap(true)
         .clear(false)
         .build();
 
-    textures.bloomTilesAlt = pipeline
-        .createTexture("bloom_tiles_alt_tex")
-        .format(Format.RGB16F)
+    textures.bloomTilesB = pipeline
+        .createImageTexture("bloom_tiles_tex_b", "bloom_tiles_img_b")
+        .format(Format.R11F_G11F_B10F)
         .width(screenWidth)
         .height(screenHeight)
         .mipmap(true)
@@ -214,8 +215,8 @@ function createObjectShaders(pipeline: PipelineConfig, textures: Textures, buffe
     for (const [usage, name, macro] of solidPrograms) {
         pipeline
             .createObjectShader(name, usage)
-            .vertex("program/object/all_solid.vsh")
-            .fragment("program/object/all_solid.fsh")
+            .vertex("programs/object/all_solid.vsh")
+            .fragment("programs/object/all_solid.fsh")
             .target(0, textures.gbufferData)
             .define(macro, "1")
             .compile();
@@ -234,8 +235,8 @@ function createObjectShaders(pipeline: PipelineConfig, textures: Textures, buffe
     for (const [usage, name, macro] of translucentPrograms) {
         pipeline
             .createObjectShader(name, usage)
-            .vertex("program/object/all_translucent.vsh")
-            .fragment("program/object/all_translucent.fsh")
+            .vertex("programs/object/all_translucent.vsh")
+            .fragment("programs/object/all_translucent.fsh")
             .target(0, textures.radiance)
             .ubo(0, buffers.globalData)
             .define(macro, "1")
@@ -246,15 +247,15 @@ function createObjectShaders(pipeline: PipelineConfig, textures: Textures, buffe
 
     pipeline
         .createObjectShader("shadow", Usage.SHADOW)
-        .vertex("program/object/shadow.vsh")
-        .fragment("program/object/shadow.fsh")
+        .vertex("programs/object/shadow.vsh")
+        .fragment("programs/object/shadow.fsh")
         .compile();
 
     if (getBoolSetting("pointShadowEnabled")) {
         pipeline
             .createObjectShader("shadow_point", Usage.POINT)
-            .vertex("program/object/shadow_point.vsh")
-            .fragment("program/object/shadow_point.fsh")
+            .vertex("programs/object/shadow_point.vsh")
+            .fragment("programs/object/shadow_point.fsh")
             .compile();
     }
 }
@@ -262,7 +263,7 @@ function createObjectShaders(pipeline: PipelineConfig, textures: Textures, buffe
 function createPreRenderCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
     commands
         .createCompute("fill_global_data_buffer")
-        .location("program/pre_render/fill_global_data_buffer.csh")
+        .location("programs/pre_render/fill_global_data_buffer.csh")
         .workGroups(1, 1, 1)
         .ssbo(0, buffers.globalData)
         .compile();
@@ -271,15 +272,15 @@ function createPreRenderCommands(commands: CommandList, textures: Textures, buff
 
     commands
         .createComposite("render_sky_view")
-        .vertex("program/composite.vsh")
-        .fragment("program/pre_render/render_sky_view.fsh")
+        .vertex("programs/composite.vsh")
+        .fragment("programs/pre_render/render_sky_view.fsh")
         .target(0, textures.skyView)
         .ubo(0, buffers.globalData)
         .compile();
 
     commands
         .createCompute("gen_sky_sh")
-        .location("program/pre_render/gen_sky_sh.csh")
+        .location("programs/pre_render/gen_sky_sh.csh")
         .workGroups(1, 1, 1)
         .ssbo(0, buffers.skySh)
         .compile();
@@ -292,8 +293,8 @@ function createPreRenderCommands(commands: CommandList, textures: Textures, buff
 function createPreTranslucentCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
     commands
         .createComposite("deferred_shading")
-        .vertex("program/composite.vsh")
-        .fragment("program/pre_translucent/deferred_shading.fsh")
+        .vertex("programs/composite.vsh")
+        .fragment("programs/pre_translucent/deferred_shading.fsh")
         .target(0, textures.radiance)
         .ubo(0, buffers.globalData)
         .ubo(1, buffers.skySh)
@@ -303,7 +304,7 @@ function createPreTranslucentCommands(commands: CommandList, textures: Textures,
 }
 
 function createPostRenderCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
-    createBloomCommands(commands.subList("Bloom"), textures, buffers);
+    createBloomCommands(commands.subList("Bloom"), textures, textures.radiance);
     createExposureCommands(commands.subList("Auto Exposure"), textures, buffers);
 
     commands.end();
@@ -312,7 +313,7 @@ function createPostRenderCommands(commands: CommandList, textures: Textures, buf
 function createExposureCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
     commands
         .createCompute("clear_histogram")
-        .location("program/post_render/exposure/clear_histogram.csh")
+        .location("programs/post_render/exposure/clear_histogram.csh")
         .workGroups(1, 1, 1)
         .state(stateReferences.autoExposure)
         .compile();
@@ -321,7 +322,7 @@ function createExposureCommands(commands: CommandList, textures: Textures, buffe
 
     commands
         .createCompute("build_histogram")
-        .location("program/post_render/exposure/build_histogram.csh")
+        .location("programs/post_render/exposure/build_histogram.csh")
         .workGroups(Math.ceil(screenWidth / 32), Math.ceil(screenHeight / 32), 1)
         .state(stateReferences.autoExposure)
         .compile();
@@ -330,7 +331,7 @@ function createExposureCommands(commands: CommandList, textures: Textures, buffe
 
     commands
         .createCompute("calculate_exposure")
-        .location("program/post_render/exposure/calculate_exposure.csh")
+        .location("programs/post_render/exposure/calculate_exposure.csh")
         .workGroups(1, 1, 1)
         .ssbo(0, buffers.exposure)
         .state(stateReferences.autoExposure)
@@ -341,35 +342,31 @@ function createExposureCommands(commands: CommandList, textures: Textures, buffe
     commands.end();
 }
 
-function createBloomCommands(commands: CommandList, textures: Textures, buffers: Buffers) {
-    let textureFlipper = new Flipper<[BuiltTexture, string]>(
-        [textures.bloomTiles, "bloom_tiles_tex"],
-        [textures.bloomTilesAlt, "bloom_tiles_alt_tex"]
-    );
-
+function createBloomCommands(
+    commands: CommandList, 
+    textures: Textures, 
+    sourceTexture: BuiltTexture
+) {
     const tileCount = getIntSetting("bloomTileCount");
-
-    if (tileCount % 2 == 1) {
-        // Flip so that the final result ends up in textures.bloomTiles
-        textureFlipper.flip();
-    }
-
-    // Copy scene to initial tile
-
-    commands.copy(textures.radiance, textureFlipper.front()[0], screenWidth, screenHeight);
+    let textureFlipper = new Flipper(textures.bloomTilesA, textures.bloomTilesB); 
 
     // Downsampling
 
     let downsampling = commands.subList("Downsampling");
 
-    for (let i = 1; i < tileCount; i++) {
+    for (let dstLod = 1; dstLod < tileCount; dstLod++) {
+        // Read from sourceTexture for lod 0 (avoid initial copy)
+        let srcLod = dstLod - 1;
+        let srcTex = srcLod == 0 ? sourceTexture : textureFlipper.front();
+
         downsampling
-            .createComposite(`downsample ${i}`)
-            .vertex("program/composite.vsh")
-            .fragment("program/post_render/bloom/downsample.fsh")
-            .target(0, textureFlipper.front()[0], i)
-            .define("SRC_TEX", textureFlipper.front()[1])
-            .define("SRC_LOD", (i - 1).toString())
+            .createComposite(`downsample ${dstLod}`)
+            .vertex("programs/composite.vsh")
+            .fragment("programs/post_render/bloom/downsample.fsh")
+            .target(0, textureFlipper.front(), dstLod)
+            .define("SRC_TEX", srcTex.name())
+            .define("SRC_LOD", srcLod.toString())
+            .define("DST_LOD", dstLod.toString())
             .state(stateReferences.bloom)
             .compile();
     }
@@ -380,49 +377,92 @@ function createBloomCommands(commands: CommandList, textures: Textures, buffers:
 
     let blur = commands.subList("Blur");
 
-    for (let i = 0; i < tileCount; i++) {
-        // Horizontal
-        blur.createComposite(`blur ${i} horizontal`)
-            .vertex("program/composite.vsh")
-            .fragment("program/post_render/bloom/blur.fsh")
-            .target(0, textureFlipper.back()[0], i)
-            .define("SRC_TEX", textureFlipper.front()[1])
-            .define("SRC_LOD", i.toString())
-            .state(stateReferences.bloom)
-            .compile();
+    const useComputeBlur = true;
+    const workGroupSize = 64;
 
-        textureFlipper.flip();
+    for (let lod = 0; lod < tileCount; lod++) {
+        // Read from sourceTexture for lod 0 (avoid initial copy)
+        let tex = lod == 0 ? sourceTexture : textureFlipper.front();
+        let mipSuffix = lod == 0 ? "" : `_mip${lod}`;
 
-        // Vertical
-        blur.createComposite(`blur ${i} vertical`)
-            .vertex("program/composite.vsh")
-            .fragment("program/post_render/bloom/blur.fsh")
-            .target(0, textureFlipper.back()[0], i)
-            .define("SRC_TEX", textureFlipper.front()[1])
-            .define("SRC_LOD", i.toString())
-            .define("BLUR_VERTICAL", "")
-            .state(stateReferences.bloom)
-            .compile();
+        if (useComputeBlur) {
+            commands.createCompute(`blur ${lod} horizontal (compute)`)
+                .location("programs/post_render/bloom/blur_h.csh")
+                .workGroups(
+                    Math.ceil(screenWidth / workGroupSize),
+                    screenHeight,
+                    1
+                )
+                .define("WORK_GROUP_SIZE", workGroupSize.toString())
+                .define("DST_IMG", textureFlipper.back().imageName() + mipSuffix)
+                .define("SRC_TEX", textureFlipper.front().name())
+                .define("SRC_LOD", lod.toString())
+                .compile();
 
-        textureFlipper.flip();
+            commands.barrier(IMAGE_BIT | FETCH_BIT);
+
+            textureFlipper.flip();
+
+            commands.createCompute(`blur ${lod} vertical (compute)`)
+                .location("programs/post_render/bloom/blur_v.csh")
+                .workGroups(
+                    Math.ceil(screenWidth / workGroupSize),
+                    screenHeight,
+                    1
+                )
+                .define("WORK_GROUP_SIZE", workGroupSize.toString())
+                .define("DST_IMG", textureFlipper.back().imageName())
+                .define("SRC_TEX", textureFlipper.front().name())
+                .define("SRC_LOD", lod.toString())
+                .compile();
+
+            commands.barrier(IMAGE_BIT | FETCH_BIT);
+
+            textureFlipper.flip();
+        } else {
+            // Horizontal
+            blur.createComposite(`blur ${lod} horizontal (fragment)`)
+                .vertex("programs/composite.vsh")
+                .fragment("programs/post_render/bloom/blur.fsh")
+                .target(0, textureFlipper.back(), lod)
+                .define("SRC_TEX", tex.name())
+                .define("SRC_LOD", lod.toString())
+                .state(stateReferences.bloom)
+                .compile();
+
+            textureFlipper.flip();
+
+            // Vertical
+            blur.createComposite(`blur ${lod} vertical (fragment)`)
+                .vertex("programs/composite.vsh")
+                .fragment("programs/post_render/bloom/blur.fsh")
+                .target(0, textureFlipper.back(), lod)
+                .define("BLUR_VERTICAL", "")
+                .define("SRC_TEX", textureFlipper.front().name())
+                .define("SRC_LOD", lod.toString())
+                .state(stateReferences.bloom)
+                .compile();
+
+            textureFlipper.flip();
+        }
     }
 
     blur.end();
 
-    // Upsampling
+    // Upsampling 
+    // Final upsample from 1 to 0 is performed in the program where bloom is applied (save unneeded write)
 
     let upsampling = commands.subList("Upsampling");
 
-    for (let i = 1; i < tileCount; i++) {
-        let srcLod = tileCount - i - 1;
-        let dstLod = srcLod - 1;
+    for (let dstLod = tileCount - 2; dstLod >= 1; dstLod--) {
+        let srcLod = dstLod + 1;
 
         upsampling
-            .createComposite(`upsample ${i}`)
-            .vertex("program/composite.vsh")
-            .fragment("program/post_render/bloom/upsample.fsh")
-            .target(0, textureFlipper.back()[0], dstLod)
-            .define("SRC_TEX", textureFlipper.front()[1])
+            .createComposite(`upsample ${dstLod}`)
+            .vertex("programs/composite.vsh")
+            .fragment("programs/post_render/bloom/upsample.fsh")
+            .target(0, textureFlipper.back(), dstLod)
+            .define("SRC_TEX", textureFlipper.front().name())
             .define("SRC_LOD", srcLod.toString())
             .define("DST_LOD", dstLod.toString())
             .state(stateReferences.bloom)
@@ -434,11 +474,15 @@ function createBloomCommands(commands: CommandList, textures: Textures, buffers:
     upsampling.end();
 
     commands.end();
+
+    /*
+    // blur with compute
+    //*/
 }
 
 function createCombinationPass(pipeline: PipelineConfig, textures: Textures, buffers: Buffers) {
     pipeline
-        .createCombinationPass("program/combination.fsh")
+        .createCombinationPass("programs/combination.fsh")
         .ubo(0, streamingBuffers.settings)
         .ubo(1, buffers.exposure)
         .compile();
@@ -465,41 +509,10 @@ function createGlobalMacros() {
     defineGloballyIf("USE_NORMAL_MAP", 1, getBoolSetting("normalMapEnabled"));
     defineGloballyIf("USE_SPECULAR_MAP", 1, getBoolSetting("specularMapEnabled"));
     defineGloballyIf("POINT_SHADOW", 1, getBoolSetting("pointShadowEnabled"));
+    defineGlobally("BLOOM_TILES", getIntSetting("bloomTileCount"));
 }
 
 function createStateReferences() {
     stateReferences.bloom = new StateReference();
     stateReferences.autoExposure = new StateReference();
-}
-
-// Utilities
-
-class Flipper<T> {
-    a: T;
-    b: T;
-    flipped: boolean;
-
-    constructor(a: T, b: T) {
-        this.a = a;
-        this.b = b;
-        this.flipped = false;
-    }
-
-    flip() {
-        this.flipped = !this.flipped;
-    }
-
-    front() {
-        return this.flipped ? this.b : this.a;
-    }
-
-    back() {
-        return this.flipped ? this.a : this.b;
-    }
-}
-
-function defineGloballyIf(key: string, value: string | number, condition: boolean) {
-    if (condition) {
-        defineGlobally(key, value);
-    }
 }
