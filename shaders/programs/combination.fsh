@@ -61,7 +61,6 @@ vec3 apply_bloom(ivec2 texel, vec3 color) {
 
     vec3 bloom = (bloom_0 + bloom_1) * rcp(float(BLOOM_TILES));
 
-    return bloom;
     return mix(color_out, bloom, streamed_settings.bloom_intensity);
 }
 

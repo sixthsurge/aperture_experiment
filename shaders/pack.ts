@@ -384,13 +384,14 @@ function createBloomCommands(
         // Read from sourceTexture for lod 0 (avoid initial copy)
         let tex = lod == 0 ? sourceTexture : textureFlipper.front();
         let mipSuffix = lod == 0 ? "" : `_mip${lod}`;
+        let mipScale = Math.pow(2, lod);
 
         if (useComputeBlur) {
-            commands.createCompute(`blur ${lod} horizontal (compute)`)
+            blur.createCompute(`blur ${lod} horizontal (compute)`)
                 .location("programs/post_render/bloom/blur_h.csh")
                 .workGroups(
-                    Math.ceil(screenWidth / workGroupSize),
-                    screenHeight,
+                    Math.ceil(screenWidth / (workGroupSize * mipScale)),
+                    Math.ceil(screenHeight / mipScale),
                     1
                 )
                 .define("WORK_GROUP_SIZE", workGroupSize.toString())
@@ -399,24 +400,24 @@ function createBloomCommands(
                 .define("SRC_LOD", lod.toString())
                 .compile();
 
-            commands.barrier(IMAGE_BIT | FETCH_BIT);
+            blur.barrier(IMAGE_BIT | FETCH_BIT);
 
             textureFlipper.flip();
 
-            commands.createCompute(`blur ${lod} vertical (compute)`)
+            blur.createCompute(`blur ${lod} vertical (compute)`)
                 .location("programs/post_render/bloom/blur_v.csh")
                 .workGroups(
-                    Math.ceil(screenWidth / workGroupSize),
-                    screenHeight,
+                    Math.ceil(screenWidth / mipScale),
+                    Math.ceil(screenHeight / (workGroupSize * mipScale)),
                     1
                 )
                 .define("WORK_GROUP_SIZE", workGroupSize.toString())
-                .define("DST_IMG", textureFlipper.back().imageName())
+                .define("DST_IMG", textureFlipper.back().imageName() + mipSuffix)
                 .define("SRC_TEX", textureFlipper.front().name())
                 .define("SRC_LOD", lod.toString())
                 .compile();
 
-            commands.barrier(IMAGE_BIT | FETCH_BIT);
+            blur.barrier(IMAGE_BIT | FETCH_BIT);
 
             textureFlipper.flip();
         } else {
