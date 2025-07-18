@@ -347,7 +347,8 @@ function createBloomCommands(
     textures: Textures, 
     sourceTexture: BuiltTexture
 ) {
-    const tileCount = getIntSetting("bloomTileCount");
+    const maxLod = Math.log(Math.max(screenWidth, screenHeight)) / Math.log(2);
+    const tileCount = Math.min(getIntSetting("bloomTileCount"), maxLod);
     let textureFlipper = new Flipper(textures.bloomTilesA, textures.bloomTilesB); 
 
     // Downsampling
@@ -396,7 +397,7 @@ function createBloomCommands(
                 )
                 .define("WORK_GROUP_SIZE", workGroupSize.toString())
                 .define("DST_IMG", textureFlipper.back().imageName() + mipSuffix)
-                .define("SRC_TEX", textureFlipper.front().name())
+                .define("SRC_TEX", tex.name())
                 .define("SRC_LOD", lod.toString())
                 .compile();
 
@@ -475,10 +476,6 @@ function createBloomCommands(
     upsampling.end();
 
     commands.end();
-
-    /*
-    // blur with compute
-    //*/
 }
 
 function createCombinationPass(pipeline: PipelineConfig, textures: Textures, buffers: Buffers) {
